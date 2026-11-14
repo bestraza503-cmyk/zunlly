@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 
@@ -29,17 +29,23 @@ const CartContext = createContext<CartContextValue | null>(null)
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([])
   const [isLoaded, setIsLoaded] = useState(false)
-  const supabase = createClient()
+  
+  // ✅ useMemo use kiya taake har render par naya client na bane
+  const supabase = useMemo(() => createClient(), [])
   const router = useRouter()
 
   // 1. Database se Cart Fetch karein
   useEffect(() => {
+    let isMounted = true
+
     const fetchCart = async () => {
       const { data: { user } } = await supabase.auth.getUser()
       
       if (!user) {
-        setItems([]) // Agar login nahi toh cart khali
-        setIsLoaded(true)
+        if (isMounted) {
+          setItems([]) // Agar login nahi toh cart khali
+          setIsLoaded(true)
+        }
         return
       }
 
@@ -52,7 +58,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         `)
         .eq('user_id', user.id)
 
-      if (data) {
+      if (data && isMounted) {
         const formattedCart = data.map((item: any) => ({
           id: item.products.id,
           name: item.products.name,
@@ -63,7 +69,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         }))
         setItems(formattedCart)
       }
-      setIsLoaded(true)
+      if (isMounted) setIsLoaded(true)
     }
 
     fetchCart()
@@ -73,11 +79,15 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       fetchCart()
     })
 
-    return () => authListener.subscription.unsubscribe()
-  }, [supabase.auth])
+    return () => {
+      isMounted = false
+      authListener.subscription.unsubscribe()
+    }
+    // ✅ Dependency array ko fix kiya ([]), taake bar bar loop na chale
+  }, [supabase])
 
   // 2. Add to Cart
-  const add = async (item: Omit<CartItem, 'quantity'>) => {
+  const add = useCallback(async (item: Omit<CartItem, 'quantity'>) => {
     const { data: { user } } = await supabase.auth.getUser()
     
     if (!user) {
@@ -120,10 +130,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           variant: item.variant || null
         })
     }
-  }
+  }, [supabase, router])
 
   // 3. Remove from Cart
-  const remove = async (id: string, variant?: string) => {
+  const remove = useCallback(async (id: string, variant?: string) => {
     setItems((current) => current.filter((item) => !(item.id === id && item.variant === variant)))
     
     const { data: { user } } = await supabase.auth.getUser()
@@ -134,10 +144,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       
       await query
     }
-  }
+  }, [supabase])
 
   // 4. Update Quantity
-  const updateQuantity = async (id: string, action: 'increase' | 'decrease', variant?: string) => {
+  const updateQuantity = useCallback(async (id: string, action: 'increase' | 'decrease', variant?: string) => {
     let newQty = 1;
     
     // UI Update
@@ -161,16 +171,16 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       
       await query
     }
-  }
+  }, [supabase])
 
   // 5. Clear Cart
-  const clear = async () => {
+  const clear = useCallback(async () => {
     setItems([])
     const { data: { user } } = await supabase.auth.getUser()
     if (user) {
       await supabase.from('cart_items').delete().eq('user_id', user.id)
     }
-  }
+  }, [supabase])
 
   const count = items.reduce((sum, item) => sum + item.quantity, 0)
   const total = items.reduce((sum, item) => sum + item.price * item.quantity, 0)
