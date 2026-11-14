@@ -1,6 +1,6 @@
 'use client'
 
-import { FormEvent, useState, useRef, useEffect, useMemo } from 'react'
+import { FormEvent, useState, useRef, useEffect, useMemo, Suspense } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -11,10 +11,15 @@ import { Banknote, CreditCard, UploadCloud, CheckCircle2, ShieldCheck, X } from 
 type PaymentMethod = 'cod' | 'advance'
 const ADVANCE_DISCOUNT_PERCENT = 5
 
-export default function CheckoutPage() {
+// ✅ Inner component jisme useSearchParams hai
+function CheckoutContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const supabase = createClient()
+  
+  const supabase = useMemo(() => {
+    if (typeof window === 'undefined') return null
+    return createClient()
+  }, [])
   
   const { items: cartItems, clear: clearCart } = useCart()
   
@@ -37,6 +42,8 @@ export default function CheckoutPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
+    if (!supabase) return
+
     const fetchCheckoutData = async () => {
       if (buyNowId) {
         const { data: product } = await supabase
@@ -92,7 +99,6 @@ export default function CheckoutPage() {
     setBusy(true)
 
     try {
-      // ✅ FORM DATA BANAYEIN (Kyunki screenshot file bhejni hai)
       const formData = new FormData()
       formData.append('customerName', form.customerName)
       formData.append('phone', form.phone)
@@ -113,12 +119,10 @@ export default function CheckoutPage() {
         })))
       )
       
-      // Screenshot file attach karein
       if (screenshot) {
         formData.append('screenshot', screenshot)
       }
 
-      // ✅ API Call (Content-Type header mat lagayein)
       const response = await fetch('/api/checkout', { 
         method: 'POST', 
         body: formData 
@@ -249,5 +253,18 @@ export default function CheckoutPage() {
         )}
       </div>
     </main>
+  )
+}
+
+// ✅ Main page - Suspense ke saath
+export default function CheckoutPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#f8f7f4] flex items-center justify-center">
+        <p className="text-[#b49a62] animate-pulse uppercase tracking-widest text-sm font-bold">Loading Checkout...</p>
+      </div>
+    }>
+      <CheckoutContent />
+    </Suspense>
   )
 }
