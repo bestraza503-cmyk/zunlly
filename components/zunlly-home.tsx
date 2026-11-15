@@ -176,7 +176,7 @@ export function ZunllyHome({
 
       <div className="bg-[#1d1c1a] py-2.5 overflow-hidden flex whitespace-nowrap">
         <div className="animate-marquee text-[9px] font-semibold uppercase tracking-[.25em] text-[#d8c49a]">
-          <span className="mx-6">Complimentary delivery across Pakistan on orders over PKR 10,000</span>
+          <span className="mx-6">Complimentary delivery across Pakistan on orders over PKR 4,000</span>
           <span className="mx-4">✦</span>
           <span className="mx-6">Quality meets value. Discover your signature scent.</span>
           <span className="mx-4">✦</span>
@@ -358,7 +358,12 @@ export function ZunllyHome({
           <div><h4 className="font-bold text-white mb-3 text-[15px]">Get to Know Us</h4><ul className="space-y-2 text-[13px] text-gray-300"><li><Link href="/about" className="hover:underline">Our Story</Link></li><li><Link href="/contact" className="hover:underline">Contact Us</Link></li></ul></div>
           <div><h4 className="font-bold text-white mb-3 text-[15px]">Shop With Us</h4><ul className="space-y-2 text-[13px] text-gray-300"><li><Link href="/shop" className="hover:underline">All Fragrances</Link></li><li><Link href="/category/for-him" className="hover:underline">For Him</Link></li><li><Link href="/category/for-her" className="hover:underline">For Her</Link></li><li><Link href="/category/unisex" className="hover:underline">Unisex</Link></li></ul></div>
           <div><h4 className="font-bold text-white mb-3 text-[15px]">Let Us Help You</h4><ul className="space-y-2 text-[13px] text-gray-300"><li><Link href="/account" className="hover:underline">Your Account</Link></li><li><Link href="/shipping" className="hover:underline">Shipping Rates & Policies</Link></li><li><Link href="/shipping" className="hover:underline">Returns & Replacements</Link></li></ul></div>
-          <div><h4 className="font-bold text-white mb-3 text-[15px]">Let's Connect</h4><ul className="space-y-2 text-[13px] text-gray-300"><li><a href="#" className="hover:underline">Instagram</a></li><li><a href="#" className="hover:underline">Facebook</a></li><li><a href="#" className="hover:underline">Twitter</a></li></ul></div>
+          <div>
+            <h4 className="font-bold text-white mb-3 text-[15px]">Let's Connect</h4>
+            <ul className="space-y-2 text-[13px] text-gray-300">
+              <li><a href="https://www.instagram.com/zunllyofficial/" className="hover:underline">Instagram</a></li>
+          <li><a href="https://web.facebook.com/profile.php?id=61595457614392" className="hover:underline">Facebook</a></li>
+          <li><a href="https://www.tiktok.com/@zunllyofficial" className="hover:underline">Tiktok</a></li></ul></div>
         </div>
         <div className="bg-[#131A22] py-8 text-center border-t border-gray-700 flex flex-col items-center justify-center"><Link href="/" className="mb-4 inline-block"><Image src="/logo.png" alt="ZUNLLY Logo" width={100} height={35} className="object-contain brightness-0 invert opacity-90" /></Link><p className="text-[12px] text-gray-400">© 2026 ZUNLLY. All rights reserved. Designed & Crafted in Pakistan.</p></div>
       </footer>
