@@ -6,12 +6,11 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useCart } from '@/components/cart-provider'
 import { createClient } from '@/lib/supabase/client'
-import { Banknote, CreditCard, UploadCloud, CheckCircle2, ShieldCheck, X } from 'lucide-react'
+import { Banknote, CreditCard, UploadCloud, CheckCircle2, ShieldCheck, X, User } from 'lucide-react'
 
 type PaymentMethod = 'cod' | 'advance'
 const ADVANCE_DISCOUNT_PERCENT = 5
 
-// ✅ Inner component jisme useSearchParams hai
 function CheckoutContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -28,6 +27,7 @@ function CheckoutContent() {
 
   const [checkoutItems, setCheckoutItems] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [loggedInUser, setLoggedInUser] = useState<any>(null)
   
   const [form, setForm] = useState({ 
     customerName: '', phone: '', email: '', address: '', city: '', postalCode: '', notes: '' 
@@ -45,6 +45,18 @@ function CheckoutContent() {
     if (!supabase) return
 
     const fetchCheckoutData = async () => {
+      // ✅ 1. Check karo ke user login hai ya nahi
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        setLoggedInUser(user)
+        setForm(prev => ({
+          ...prev,
+          email: prev.email || user.email || '',
+          customerName: prev.customerName || user.user_metadata?.full_name || ''
+        }))
+      }
+
+      // 2. Items fetch karo
       if (buyNowId) {
         const { data: product } = await supabase
           .from('products')
@@ -110,6 +122,10 @@ function CheckoutContent() {
       formData.append('paymentMethod', paymentMethod)
       formData.append('idempotencyKey', idempotencyKey)
       
+      // ✅ DEBUG LOG: Check karo ke total amount sahi jaa raha hai
+      console.log("🚀 Total Amount sent to API:", grandTotal) 
+      formData.append('total_amount', grandTotal.toString()) 
+      
       formData.append(
         'items', 
         JSON.stringify(checkoutItems.map((item) => ({ 
@@ -168,6 +184,15 @@ function CheckoutContent() {
           <div>
             <h1 className="font-serif text-5xl md:text-6xl">Secure Checkout</h1>
             <p className="mt-3 text-sm text-[#827b70]">{buyNowId ? 'Express Checkout (Buy Now)' : 'Complete your details to place the order.'}</p>
+            
+            <div className="mt-4 flex items-center gap-2 text-xs text-[#9b9387]">
+              <User size={14} />
+              {loggedInUser ? (
+                <span>Logged in as <strong>{loggedInUser.email}</strong></span>
+              ) : (
+                <span>Checking out as <strong>Guest</strong> (No account needed)</span>
+              )}
+            </div>
           </div>
           <div className="hidden sm:flex items-center gap-2 text-xs uppercase tracking-widest text-[#9b9387]"><ShieldCheck size={16} /> SSL Encrypted</div>
         </div>
@@ -256,7 +281,6 @@ function CheckoutContent() {
   )
 }
 
-// ✅ Main page - Suspense ke saath
 export default function CheckoutPage() {
   return (
     <Suspense fallback={

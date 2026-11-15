@@ -9,7 +9,8 @@ type Order = {
   id: string
   order_number: string | null
   customer_name: string | null
-  total: number
+  total_amount: number // ✅ total_amount kar diya
+  total?: number // ✅ Fallback ke liye
   status: string
   payment_method: string
   created_at: string
@@ -35,7 +36,8 @@ export default function AdminOrdersPage() {
     const fetchOrders = async () => {
       const { data, error } = await supabase
         .from('orders')
-        .select('id, order_number, customer_name, total, status, payment_method, created_at, delivery_info')
+        // ✅ Yahan total_amount fetch kar rahe hain
+        .select('id, order_number, customer_name, total_amount, total, status, payment_method, created_at, delivery_info')
         .order('created_at', { ascending: false })
       
       if (data) setOrders(data as Order[])
@@ -173,7 +175,8 @@ export default function AdminOrdersPage() {
                       {order.payment_method === 'cod' ? 'COD' : 'Advance'}
                     </td>
                     <td className="px-6 py-4 font-bold text-[#c46c3b]">
-                      PKR {Number(order.total).toLocaleString('en-PK')}
+                      {/* ✅ Yahan total_amount display kar rahe hain */}
+                      PKR {Number(order.total_amount || order.total || 0).toLocaleString('en-PK')}
                     </td>
                     <td className="px-6 py-4">
                       <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold capitalize ring-1 ring-inset ${statusStyles[order.status.toLowerCase()] || 'bg-stone-100 text-stone-600 ring-stone-200'}`}>

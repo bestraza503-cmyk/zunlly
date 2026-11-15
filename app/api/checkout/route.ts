@@ -1,22 +1,19 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
+import { sendOrderConfirmationEmail } from "@/lib/send-order-email"
 
 export async function POST(request: Request) {
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     
-    if (!user) {
-      return NextResponse.json({ error: "Please sign in before checkout." }, { status: 401 })
-    }
+    const customerId = user ? user.id : null
 
-    // ✅ SMART CONTENT-TYPE CHECK
     const contentType = request.headers.get("content-type") || ""
     let bodyData: any = {}
     let screenshotFile: File | null = null
 
     if (contentType.includes("multipart/form-data")) {
-      // Agar FormData aya hai (screenshot ke sath)
       const formData = await request.formData()
       bodyData = {
         customerName: formData.get('customerName'),
@@ -28,21 +25,22 @@ export async function POST(request: Request) {
         notes: formData.get('notes'),
         paymentMethod: formData.get('paymentMethod'),
         idempotencyKey: formData.get('idempotencyKey'),
+        total_amount: formData.get('total_amount'),
         items: JSON.parse(String(formData.get('items') || '[]')),
       }
       screenshotFile = formData.get('screenshot') as File | null
     } else {
-      // Agar JSON aya hai (normal order)
       bodyData = await request.json()
     }
     
     const customerName = String(bodyData.customerName || '').trim()
     const phone = String(bodyData.phone || '').trim()
-    const email = String(bodyData.email || user.email || '').trim()
+    const email = String(bodyData.email || user?.email || 'guest@zunlly.com').trim()
     const address = String(bodyData.address || '').trim()
     const city = String(bodyData.city || '').trim()
     const postalCode = String(bodyData.postalCode || '').trim()
     const notes = String(bodyData.notes || '').trim()
+    const total_amount = Number(bodyData.total_amount) || 0 
     const paymentMethod = String(bodyData.paymentMethod || 'cod')
     const idempotencyKey = String(bodyData.idempotencyKey || crypto.randomUUID())
     const items = Array.isArray(bodyData.items) ? bodyData.items : []
@@ -51,7 +49,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Please complete all required checkout fields." }, { status: 400 })
     }
 
-    // ✅ 1. Screenshot Upload (Agar mojood hai)
+    // Screenshot Upload
     let screenshotUrl = null
     if (paymentMethod === 'advance' && screenshotFile && screenshotFile.size > 0) {
       const fileExt = screenshotFile.name.split('.').pop()
@@ -62,7 +60,6 @@ export async function POST(request: Request) {
         .upload(fileName, screenshotFile)
 
       if (uploadError) {
-        console.error("❌ SCREENSHOT UPLOAD ERROR:", uploadError)
         return NextResponse.json({ error: "Failed to upload payment screenshot." }, { status: 400 })
       }
 
@@ -73,52 +70,72 @@ export async function POST(request: Request) {
       screenshotUrl = publicUrl
     }
 
-    // 2. RPC Call (Order Creation)
-    const { data: rpcData, error: rpcError } = await supabase.rpc("create_cod_order", {
-      p_customer_id: user.id,
-      p_delivery_info: { 
-        customerName: customerName || 'Customer', 
-        phone: phone || 'N/A', 
-        email: email || 'guest@zunlly.com', 
-        address: address || 'N/A', 
-        city: city || 'N/A', 
-        postalCode: postalCode || '00000', 
-        notes: notes || '',
-        screenshot_url: screenshotUrl
-      },
-      p_items: items.map((item: any) => ({
-        product_id: item.product_id,
-        quantity: Math.floor(Number(item.quantity)),
-        size: item.size || null,
-      })),
-      p_idempotency_key: idempotencyKey,
-    })
-
-    if (rpcError) {
-      console.error("❌ RPC ERROR:", rpcError)
-      return NextResponse.json({ error: `Database Error: ${rpcError.message}` }, { status: 400 })
-    }
-
-    // 3. Update Order Info (Email aur Screenshot URL save karein)
-    const orderId = rpcData?.id || rpcData?.order_id;
-    if (orderId) {
-      await supabase.from('orders').update({
-        email: email || 'guest@zunlly.com',
+    // ✅ 1. DIRECT INSERT: Order create karo
+    const { data: orderData, error: orderError } = await supabase
+      .from('orders')
+      .insert({
+        customer_id: customerId,
+        total_amount: total_amount, 
+        status: 'pending',
+        idempotency_key: idempotencyKey,
+        payment_method: paymentMethod,
+        email: email,
         delivery_info: { 
-          customerName: customerName || 'Customer', 
-          phone: phone || 'N/A', 
-          email: email || 'guest@zunlly.com', 
-          address: address || 'N/A', 
-          city: city || 'N/A', 
-          postalCode: postalCode || '00000', 
-          notes: notes || '',
-          screenshot_url: screenshotUrl
-        },
-        payment_method: paymentMethod
-      }).eq('id', orderId)
+          customerName, phone, email, address, city, postalCode, notes, screenshot_url: screenshotUrl
+        }
+      })
+      .select('id')
+      .single()
+
+    if (orderError) {
+      console.error("❌ REAL ORDER INSERT ERROR:", orderError)
+      return NextResponse.json({ error: `Database Error: ${orderError.message || 'Check terminal for details'}` }, { status: 400 })
     }
 
-    return NextResponse.json({ order: rpcData }, { status: 201 })
+    const orderId = orderData.id
+    const displayOrderNumber = orderId.slice(0, 8).toUpperCase()
+
+    // ✅ 2. DIRECT INSERT: Order Items create karo
+    const productIds = items.map((i: any) => i.product_id)
+    const { data: productsData } = await supabase
+      .from('products')
+      .select('id, name, price')
+      .in('id', productIds)
+
+    if (productsData && productsData.length > 0) {
+      const orderItemsToInsert = items.map((item: any) => {
+        const product = productsData.find(p => p.id === item.product_id)
+        return {
+          order_id: orderId,
+          product_id: item.product_id,
+          product_name: product?.name || 'Unknown Product',
+          price: product?.price || 0,
+          quantity: Math.floor(Number(item.quantity)),
+          size: item.size || null,
+        }
+      })
+
+      const { error: itemsError } = await supabase
+        .from('order_items')
+        .insert(orderItemsToInsert)
+
+      if (itemsError) {
+        console.error("❌ REAL ITEMS INSERT ERROR:", itemsError)
+        await supabase.from('orders').delete().eq('id', orderId)
+        return NextResponse.json({ error: `Items Error: ${itemsError.message || 'Check terminal'}` }, { status: 400 })
+      }
+    }
+
+    // ✅ 3. EMAIL BHEJO (Ab await kar rahe hain taake error foran dikhe)
+    if (email && email !== 'guest@zunlly.com') {
+      console.log("📨 Sending email to:", email);
+      const emailResult = await sendOrderConfirmationEmail(email, displayOrderNumber, total_amount, customerName);
+      if (!emailResult.success) {
+        console.error("❌ EMAIL FAILED:", emailResult.error);
+      }
+    }
+
+    return NextResponse.json({ order: { id: orderId, order_number: displayOrderNumber } }, { status: 201 })
 
   } catch (error: any) {
     console.error("❌ API CRASH ERROR:", error)

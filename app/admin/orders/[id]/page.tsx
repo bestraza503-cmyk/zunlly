@@ -31,6 +31,9 @@ export default async function AdminOrderDetailPage({ params }: { params: Promise
   // 3. Screenshot URL dhoondein (kisi bhi column ya JSON se)
   const screenshotUrl = deliveryInfo?.screenshot_url || order.screenshot_url || null
 
+  // ✅ 4. Total Amount nikaalo (total_amount pehle check karo)
+  const displayTotal = Number(order.total_amount) || Number(order.total) || 0
+
   return (
     <div className="space-y-6 max-w-5xl mx-auto p-4 md:p-8">
       <Link href="/admin/orders" className="text-sm font-semibold text-[#c46c3b] inline-flex items-center gap-1 hover:text-[#a55626] transition-colors">
@@ -49,7 +52,8 @@ export default async function AdminOrderDetailPage({ params }: { params: Promise
         </div>
         <div className="bg-[#fbf7f1] px-5 py-3 rounded-xl border border-[#eadfce] text-right">
           <p className="text-xs uppercase tracking-wider text-[#8a6b58] mb-1">Total Amount</p>
-          <p className="font-bold text-xl text-[#c46c3b]">PKR {Number(order.total || order.total_amount || 0).toLocaleString('en-PK')}</p>
+          {/* ✅ Yahan displayTotal use kiya hai */}
+          <p className="font-bold text-xl text-[#c46c3b]">PKR {displayTotal.toLocaleString('en-PK')}</p>
         </div>
       </div>
 

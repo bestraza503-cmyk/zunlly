@@ -6,12 +6,15 @@ export default async function OrderConfirmationPage({ params }: { params: Promis
   const { id } = await params
   const supabase = await createClient()
 
-  // Fetch order details to show the order number
+  // ✅ Fetch order details (Ab total_amount bhi fetch kar rahe hain)
   const { data: order } = await supabase
     .from('orders')
-    .select('id, order_number, total, email')
+    .select('id, order_number, total_amount, total, email')
     .eq('id', id)
     .maybeSingle()
+
+  // ✅ Agar total_amount hai toh wo dikhao, warna total, warna 0
+  const displayTotal = order?.total_amount || order?.total || 0
 
   return (
     <main className="min-h-screen bg-[#f8f7f4] flex items-center justify-center px-5 py-12">
@@ -36,7 +39,8 @@ export default async function OrderConfirmationPage({ params }: { params: Promis
           
           <div className="mt-4 pt-4 border-t border-[#e6e1d9] flex justify-between items-center text-sm">
             <span className="text-[#827b70]">Total Amount</span>
-            <span className="font-bold text-[#292722]">PKR {Number(order?.total || 0).toLocaleString()}</span>
+            {/* ✅ Yahan displayTotal use kiya hai */}
+            <span className="font-bold text-[#292722]">PKR {Number(displayTotal).toLocaleString()}</span>
           </div>
         </div>
 
