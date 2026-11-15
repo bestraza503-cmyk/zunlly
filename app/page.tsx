@@ -1,18 +1,25 @@
 import { ZunllyHome } from '@/components/zunlly-home'
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@/lib/supabase/server' // ✅ Server Import
 import { getProductImageUrl } from '@/lib/product-image'
 
 export default async function Page() {
   const supabase = await createClient()
   
-  // Database se data fetch karo
+  // ✅ FIX: Query mein product_reviews add kiya
   const { data } = await supabase
     .from('products')
-    .select('id, name, price, images, fragrance_notes, categories(name)')
+    .select(`
+      id, 
+      name, 
+      price, 
+      images, 
+      fragrance_notes, 
+      categories(name),
+      product_reviews ( rating )
+    `)
     .eq('status', 'published')
     .order('created_at', { ascending: false })
 
-  // Data ko ZunllyHome ke format mein map karo
   const products = (data ?? []).map((product) => ({
     id: product.id,
     name: product.name,
@@ -20,13 +27,15 @@ export default async function Page() {
       ? product.categories[0]?.name ?? 'Collection' 
       : product.categories?.name ?? 'Collection',
     
-    // ✅ FIX: Price ko string ki jagah Number bheja hai taake formatPrice kaam kare
+    // Price ko number banao taake NaN error na aaye
     price: Number(product.price) || 0, 
     
     image: getProductImageUrl(product.images),
     notes: Array.isArray(product.fragrance_notes) ? product.fragrance_notes.join(' · ') : '',
     tag: '',
-    product_reviews: [] 
+    
+    // ✅ FIX: Reviews ka data pass kiya
+    product_reviews: product.product_reviews || []
   }))
 
   return <ZunllyHome products={products} />

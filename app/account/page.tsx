@@ -1,6 +1,13 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { AccountReviewButton } from '@/components/account-review-button'
+
+type OrderItem = {
+  id: string
+  product_id: string
+  product_name: string
+}
 
 type Order = {
   id: string
@@ -8,8 +15,10 @@ type Order = {
   status: string
   total: number
   created_at: string
+  order_items: OrderItem[]
 }
 
+// ✅ Status Pill Helper
 const statusStyles: Record<string, string> = {
   pending: 'bg-amber-50 text-amber-700 ring-amber-200',
   processing: 'bg-blue-50 text-blue-700 ring-blue-200',
@@ -28,6 +37,7 @@ function StatusPill({ status }: { status: string }) {
   )
 }
 
+// ✅ Initials Helper
 function initials(name?: string | null, email?: string | null) {
   if (name?.trim()) {
     return name.trim().split(/\s+/).slice(0, 2).map((p) => p[0]?.toUpperCase() ?? '').join('')
@@ -35,7 +45,7 @@ function initials(name?: string | null, email?: string | null) {
   return (email?.[0] || '?').toUpperCase()
 }
 
-// ✅ NAVIGATION UPDATED (Wishlist Added)
+// ✅ Navigation Links
 const NAV = [
   { href: '/account', label: 'Overview', icon: '◧', active: true },
   { href: '/account/orders', label: 'Order history', icon: '▤' },
@@ -43,6 +53,7 @@ const NAV = [
   { href: '/account/settings', label: 'Settings', icon: '⚙' },
 ]
 
+// ✅ Quick Actions
 const QUICK_ACTIONS = [
   {
     href: '/account/orders',
@@ -80,15 +91,29 @@ export default async function AccountPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/auth/login')
 
+  // 1. Fetch Profile
   const { data: profile } = await supabase.from('profiles').select('full_name, phone, role').eq('id', user.id).maybeSingle()
 
+  // 2. Fetch Orders with Items
   const { data: ordersData } = await supabase
     .from('orders')
-    .select('id, order_number, status, total, created_at')
+    .select(`
+      id, order_number, status, total, created_at,
+      order_items ( id, product_id, product_name )
+    `)
     .eq('customer_id', user.id)
     .order('created_at', { ascending: false })
 
-  // ✅ Wishlist count fetch kar rahe hain
+  // 3. Fetch Reviews (To check if reviewed)
+  const { data: userReviews } = await supabase
+    .from('product_reviews')
+    .select('product_id, order_id')
+    .eq('user_id', user.id)
+
+  // Unique key banate hain (order_id + product_id) taake specific order ka pata chale
+  const reviewedKeys = userReviews?.map(r => `${r.order_id}-${r.product_id}`) || []
+
+  // 4. Wishlist Count
   const { count: wishlistCount } = await supabase
     .from('wishlist')
     .select('*', { count: 'exact', head: true })
@@ -99,7 +124,7 @@ export default async function AccountPage() {
   const activeOrders = orders.filter((o) => !['delivered', 'cancelled'].includes((o.status || '').toLowerCase())).length
 
   const displayName = profile?.full_name || user.email?.split('@')[0] || 'You'
-  const recent = orders.slice(0, 5)
+  const recent = orders.slice(0, 3) 
 
   return (
     <main className="min-h-screen bg-[#fbf7f1] px-5 py-12">
@@ -153,12 +178,10 @@ export default async function AccountPage() {
               <h1 className="font-serif text-4xl text-[#3b281c]">Welcome back, {displayName.split(' ')[0]}</h1>
               <p className="mt-2 text-sm text-[#8a6b58]">Here's a quick look at your account activity.</p>
 
-              {/* Stats Grid */}
               <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 <Stat label="Total orders" value={String(orders.length)} />
                 <Stat label="Active orders" value={String(activeOrders)} accent />
                 <Stat label="Lifetime spent" value={`PKR ${totalSpent.toLocaleString('en-PK')}`} />
-                {/* ✅ Wishlist Stat Added */}
                 <Stat label="Wishlist items" value={String(wishlistCount || 0)} />
               </div>
             </div>
@@ -188,21 +211,69 @@ export default async function AccountPage() {
                   recent.map((order) => {
                     const label = order.order_number || `Order #${order.id.slice(0, 8).toUpperCase()}`
                     const date = new Date(order.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+                    const isDelivered = order.status.toLowerCase() === 'delivered'
+                    
                     return (
-                      <Link key={order.id} href={`/account/orders/${order.id}`} className="group flex items-center justify-between gap-3 rounded-2xl border border-[#eadfce] bg-white p-4 transition-all hover:-translate-y-0.5 hover:border-[#c46c3b]/40 hover:shadow-sm">
-                        <div className="min-w-0">
-                          <p className="truncate font-semibold text-[#3b281c]">{label}</p>
-                          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[#8a6b58]">
-                            <span>{date}</span>
-                            <span aria-hidden>·</span>
-                            <StatusPill status={order.status} />
+                      <div key={order.id} className="rounded-2xl border border-[#eadfce] bg-white p-4 transition-all hover:border-[#c46c3b]/40 hover:shadow-sm">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="truncate font-semibold text-[#3b281c]">{label}</p>
+                            <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[#8a6b58]">
+                              <span>{date}</span>
+                              <span aria-hidden>·</span>
+                              <StatusPill status={order.status} />
+                            </div>
+                          </div>
+                          <div className="flex shrink-0 items-center gap-2">
+                            <p className="font-semibold text-[#c46c3b]">PKR {Number(order.total).toLocaleString('en-PK')}</p>
                           </div>
                         </div>
-                        <div className="flex shrink-0 items-center gap-2">
-                          <p className="font-semibold text-[#c46c3b]">PKR {Number(order.total).toLocaleString('en-PK')}</p>
-                          <span aria-hidden className="text-[#8a6b58] transition-transform group-hover:translate-x-0.5 group-hover:text-[#c46c3b]">→</span>
+
+                        <div className="mt-3 border-t border-[#fbf7f1] pt-3">
+                          <ul className="space-y-2">
+                            {order.order_items?.map((item) => {
+                              const isReviewed = reviewedKeys.includes(`${order.id}-${item.product_id}`)
+                              
+                              return (
+                                <li key={item.id} className="flex justify-between items-center text-sm">
+                                  <span className="text-[#8a6b58]">{item.product_name}</span>
+                                  
+                                  {isDelivered && (
+                                    isReviewed ? (
+                                      <span className="text-[10px] font-bold uppercase tracking-wider text-green-600">
+                                        ✓ Reviewed
+                                      </span>
+                                    ) : (
+                                      <AccountReviewButton
+                                        productId={item.product_id}
+                                        productName={item.product_name}
+                                        orderId={order.id}
+                                      />
+                                    )
+                                  )}
+                                </li>
+                              )
+                            })}
+                          </ul>
                         </div>
-                      </Link>
+
+                        {/* ✅ Yahan "View Details" aur "View Product" dono ek sath hain */}
+                        <div className="mt-3 flex justify-end gap-4">
+                          <Link 
+                            href={`/shop/${order.order_items?.[0]?.product_id || '#'}`} 
+                            className="text-xs font-semibold text-[#8a6b58] hover:text-[#3b281c] transition-colors flex items-center gap-1"
+                          >
+                            View Product <span aria-hidden>↗</span>
+                          </Link>
+                          <Link 
+                            href={`/account/orders/${order.id}`} 
+                            className="text-xs font-semibold text-[#3b281c] hover:text-[#c46c3b] transition-colors flex items-center gap-1"
+                          >
+                            View Details <span aria-hidden>→</span>
+                          </Link>
+                        </div>
+
+                      </div>
                     )
                   })
                 )}

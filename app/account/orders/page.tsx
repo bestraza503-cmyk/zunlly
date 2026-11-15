@@ -39,9 +39,21 @@ export default async function AccountOrdersPage() {
   } = await supabase.auth.getUser()
   if (!user) redirect('/auth/login')
 
+  // ✅ Yahan order_items bhi fetch kiye hain
   const { data: orders } = await supabase
     .from('orders')
-    .select('id,order_number,status,total,created_at')
+    .select(`
+      id,
+      order_number,
+      status,
+      total,
+      created_at,
+      order_items (
+        id,
+        product_id,
+        product_name
+      )
+    `)
     .eq('customer_id', user.id)
     .order('created_at', { ascending: false })
 
@@ -89,56 +101,82 @@ export default async function AccountOrdersPage() {
                 { day: '2-digit', month: 'short', year: 'numeric' }
               )
               return (
-                <Link
+                <div
                   key={order.id}
-                  href={`/account/orders/${order.id}`}
-                  className="group flex items-center justify-between gap-4 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-transparent transition-all hover:-translate-y-0.5 hover:shadow-md hover:ring-[#c46c3b]/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c46c3b]"
+                  className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-transparent transition-all hover:shadow-md hover:ring-[#c46c3b]/40"
                 >
-                  <div className="flex min-w-0 items-start gap-3">
-                    <span
-                      aria-hidden
-                      className="mt-0.5 grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#fbf7f1] text-[#c46c3b] transition-colors group-hover:bg-[#f5e8dc]"
-                    >
-                      {/* package icon */}
-                      <svg
-                        width="18"
-                        height="18"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.8"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex min-w-0 items-start gap-3">
+                      <span
+                        aria-hidden
+                        className="mt-0.5 grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#fbf7f1] text-[#c46c3b]"
                       >
-                        <path d="M21 8l-9-5-9 5 9 5 9-5z" />
-                        <path d="M3 8v8l9 5 9-5V8" />
-                        <path d="M12 13v8" />
-                      </svg>
-                    </span>
-                    <div className="min-w-0">
-                      <p className="truncate font-semibold text-[#3b281c]">
-                        {label}
-                      </p>
-                      <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-[#8a6b58]">
-                        <span>{date}</span>
-                        <span aria-hidden>·</span>
-                        <StatusBadge status={order.status} />
+                        <svg
+                          width="18"
+                          height="18"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.8"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="M21 8l-9-5-9 5 9 5 9-5z" />
+                          <path d="M3 8v8l9 5 9-5V8" />
+                          <path d="M12 13v8" />
+                        </svg>
+                      </span>
+                      <div className="min-w-0">
+                        <p className="truncate font-semibold text-[#3b281c]">
+                          {label}
+                        </p>
+                        <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-[#8a6b58]">
+                          <span>{date}</span>
+                          <span aria-hidden>·</span>
+                          <StatusBadge status={order.status} />
+                        </div>
                       </div>
+                    </div>
+
+                    <div className="flex shrink-0 items-center gap-3">
+                      <p className="font-semibold text-[#c46c3b]">
+                        PKR {Number(order.total).toLocaleString('en-PK')}
+                      </p>
                     </div>
                   </div>
 
-                  <div className="flex shrink-0 items-center gap-3">
-                    <p className="font-semibold text-[#c46c3b]">
-                      PKR {Number(order.total).toLocaleString('en-PK')}
+                  {/* ✅ Order Items & Review Links */}
+                  <div className="mt-4 border-t border-[#fbf7f1] pt-4">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-[#8a6b58] mb-2">
+                      Items in this order:
                     </p>
-                    <span
-                      aria-hidden
-                      className="text-[#8a6b58] transition-transform group-hover:translate-x-0.5 group-hover:text-[#c46c3b]"
-                    >
-                      →
-                    </span>
+                    <ul className="space-y-2">
+                      {(order.order_items as any[])?.map((item) => (
+                        <li key={item.id} className="flex justify-between items-center text-sm">
+                          <span className="text-[#3b281c]">{item.product_name}</span>
+                          {order.status.toLowerCase() === 'delivered' && (
+                            <Link
+                              href={`/shop/${item.product_id}#review`}
+                              className="text-[10px] font-bold uppercase tracking-wider text-[#c46c3b] hover:text-[#a55626] underline underline-offset-4"
+                            >
+                              Write a Review
+                            </Link>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
                   </div>
-                </Link>
+
+                  {/* View Details Link */}
+                  <div className="mt-4 flex justify-end">
+                    <Link
+                      href={`/account/orders/${order.id}`}
+                      className="text-sm font-semibold text-[#3b281c] hover:text-[#c46c3b] flex items-center gap-1"
+                    >
+                      View Order Details <span aria-hidden>→</span>
+                    </Link>
+                  </div>
+                </div>
               )
             })
           ) : (

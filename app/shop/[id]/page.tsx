@@ -11,6 +11,8 @@ import { useCart } from '@/components/cart-provider'
 import { getProductImageUrl } from '@/lib/product-image'
 import { Toast, ToastType } from '@/components/toast'
 import { ShareModal } from '@/components/share-modal'
+import { ProductReviews } from '@/components/product-reviews'
+import TrackView from '@/components/track-view' // ✅ TrackView Import kiya
 
 // ✅ Helper function for PKR Price
 const formatPKR = (price: number) => {
@@ -18,11 +20,27 @@ const formatPKR = (price: number) => {
   return `PKR ${safePrice.toLocaleString('en-PK')}`
 }
 
+// ✅ Type definitions for safety
+type ProductType = {
+  id: string
+  name: string
+  price: number
+  sale_price?: number | null
+  sale_end_date?: string | null
+  description?: string
+  images: any
+  gallery_images?: string[] | null
+  fragrance_notes?: string[] | null
+  sizes?: string[] | null
+  category_type?: string | null
+  product_reviews?: { rating: number }[]
+}
+
 export default function ProductPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params)
   const productId = resolvedParams.id
 
-  const [product, setProduct] = useState<any>(null)
+  const [product, setProduct] = useState<ProductType | null>(null)
   const [suggestedProducts, setSuggestedProducts] = useState<any[]>([])
   const [allProducts, setAllProducts] = useState<any[]>([]) 
   const [loading, setLoading] = useState(true)
@@ -72,7 +90,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
         .single()
       
       if (productData) {
-        setProduct(productData)
+        setProduct(productData as ProductType)
         setSelectedSize(productData.sizes?.[0] || '')
         
         // Fetch Suggestions
@@ -103,7 +121,9 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
   }, [count])
 
   const handleAddToCart = () => {
+    if (!product) return
     try {
+      const finalPrice = isOnSale ? (product.sale_price || product.price) : product.price
       add({ id: product.id, name: product.name, price: Number(finalPrice), image: allImages[0], variant: selectedSize }, quantity)
       setToast({ message: `${quantity} x ${product.name}`, type: 'cart', visible: true })
     } catch (err) {
@@ -112,24 +132,27 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
   }
 
   const handleAddToWishlist = () => {
+    if (!product) return
     setToast({ message: product.name, type: 'wishlist', visible: true })
   }
 
   const handleShare = async () => {
+    if (!product) return
     if (navigator.share) {
       try { await navigator.share({ title: product.name, text: `Check out ${product.name} on ZUNLLY!`, url: window.location.href }) } catch (err) { console.log('Error sharing:', err) }
     } else { setIsShareOpen(true) }
   }
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center bg-white">Loading...</div>
-  if (!product) return <div className="min-h-screen flex items-center justify-center bg-white">Product not found</div>
+  if (loading) return <div className="min-h-screen flex items-center justify-center bg-white text-gray-500">Loading...</div>
+  if (!product) return <div className="min-h-screen flex items-center justify-center bg-white text-gray-500">Product not found</div>
 
+  // ✅ Safe calculations
   const allImages = [product.images?.[0], ...(product.gallery_images || [])].filter(Boolean)
   const reviews = product.product_reviews || []
   const reviewCount = reviews.length
   const avgRating = reviewCount > 0 ? (reviews.reduce((acc: number, rev: any) => acc + rev.rating, 0) / reviewCount).toFixed(1) : 0
-  const isOnSale = product.sale_price && product.sale_end_date && new Date(product.sale_end_date) > new Date()
-  const finalPrice = isOnSale ? product.sale_price : product.price
+  const isOnSale = !!(product.sale_price && product.sale_end_date && new Date(product.sale_end_date) > new Date())
+  const finalPrice = isOnSale ? (product.sale_price || product.price) : product.price
 
   const nextImage = () => setActiveImage((prev) => (prev + 1) % allImages.length)
   const prevImage = () => setActiveImage((prev) => (prev - 1 + allImages.length) % allImages.length)
@@ -138,13 +161,16 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
   const userInitial = userName.charAt(0).toUpperCase()
 
   // ✅ Filter Search Suggestions
-  const filteredSuggestions = allProducts.filter(p => 
+  const filteredSuggestions = allProducts.filter((p: any) => 
     p.name.toLowerCase().includes(searchQuery.toLowerCase())
   ).slice(0, 5)
 
   return (
     <main className="min-h-screen bg-white text-[#292722] pb-24 font-sans">
       
+      {/* ✅ TrackView Yahan Laga Diya Hai (Jaise hi page load hoga view count hoga) */}
+      <TrackView productId={product.id} />
+
       {/* ✅ ZUNLLY SIGNATURE HEADER */}
       <header className="sticky top-0 z-50 bg-white border-b border-gray-100 shadow-sm">
         <div className="mx-auto flex h-[80px] max-w-[1440px] items-center justify-between px-5 lg:px-12 relative">
@@ -199,13 +225,13 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                 )}
               </div>
 
-              {/* ✅ LIVE SUGGESTIONS DROPDOWN */}
+              {/* LIVE SUGGESTIONS DROPDOWN */}
               {isSearchOpen && searchQuery.length > 0 && (
                 <div className="absolute top-full right-0 mt-2 w-[250px] md:w-[350px] bg-white border border-gray-100 shadow-2xl rounded-lg overflow-hidden z-50">
                   {filteredSuggestions.length > 0 ? (
                     <div className="py-2">
                       <p className="px-4 py-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Products</p>
-                      {filteredSuggestions.map((p) => (
+                      {filteredSuggestions.map((p: any) => (
                         <Link 
                           key={p.id} 
                           href={`/shop/${p.id}`}
@@ -347,14 +373,14 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
               {isOnSale && (
                 <div className="flex items-center gap-2 mt-1">
                   <span className="text-sm text-gray-500 line-through">{formatPKR(Number(product.price))}</span>
-                  <span className="text-xs text-red-600 font-medium">Save {Math.round(((product.price - product.sale_price) / product.price) * 100)}%</span>
+                  <span className="text-xs text-red-600 font-medium">Save {Math.round(((Number(product.price) - Number(finalPrice)) / Number(product.price)) * 100)}%</span>
                 </div>
               )}
             </div>
-            {isOnSale && (<div className="mb-6 bg-red-50 border border-red-100 p-3 rounded-md"><CountdownTimer endDate={product.sale_end_date} /></div>)}
+            {isOnSale && product.sale_end_date && (<div className="mb-6 bg-red-50 border border-red-100 p-3 rounded-md"><CountdownTimer endDate={product.sale_end_date} /></div>)}
             <div className="space-y-4 mb-6">
               <div className="flex items-center gap-4"><span className="text-sm text-gray-600 w-20">Condition:</span><span className="text-sm font-medium">New</span></div>
-              {product.sizes?.length > 0 && (<div className="flex items-center gap-4"><span className="text-sm text-gray-600 w-20">Size:</span><select value={selectedSize} onChange={(e) => setSelectedSize(e.target.value)} className="flex-1 border border-gray-300 rounded-md p-2 text-sm outline-none focus:border-black">{product.sizes.map((size: string) => <option key={size} value={size}>{size}</option>)}</select></div>)}
+              {product.sizes && product.sizes.length > 0 && (<div className="flex items-center gap-4"><span className="text-sm text-gray-600 w-20">Size:</span><select value={selectedSize} onChange={(e) => setSelectedSize(e.target.value)} className="flex-1 border border-gray-300 rounded-md p-2 text-sm outline-none focus:border-black">{product.sizes.map((size: string) => <option key={size} value={size}>{size}</option>)}</select></div>)}
               <div className="flex items-center gap-4"><span className="text-sm text-gray-600 w-20">Quantity:</span><div className="flex items-center border border-gray-300 rounded-md overflow-hidden w-32"><input type="number" value={quantity} onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))} className="w-full p-2 text-sm text-center outline-none" /></div><span className="text-xs text-gray-500">More than 10 available</span></div>
             </div>
 
@@ -393,12 +419,15 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
           </div>
         </div>
 
+        {/* ✅ REVIEWS SECTION */}
+        <ProductReviews productId={product.id} />
+
         {/* Similar Items */}
         {suggestedProducts.length > 0 && (
           <section className="mt-20 border-t border-gray-200 pt-10">
             <div className="flex justify-between items-end mb-6"><div><h2 className="text-2xl font-semibold">Similar Items</h2><p className="text-sm text-gray-500 mt-1">Sponsored</p></div><Link href="/shop" className="text-[#b49a62] text-sm hover:underline">See all</Link></div>
             <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
-              {suggestedProducts.map((sp) => {
+              {suggestedProducts.map((sp: any) => {
                 const spReviews = sp.product_reviews || []
                 const spReviewCount = spReviews.length
                 const spAvgRating = spReviewCount > 0 ? (spReviews.reduce((acc: number, r: any) => acc + r.rating, 0) / spReviewCount).toFixed(1) : 0
