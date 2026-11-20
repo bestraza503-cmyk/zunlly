@@ -7,7 +7,7 @@ import { motion, AnimatePresence, Variants } from 'framer-motion'
 import { ArrowRight, ArrowLeft, Check, Heart, Menu, Search, ShoppingBag, Sparkles, UserRound, X, Star, Flame, Truck, ShieldCheck, RotateCcw, ChevronDown } from 'lucide-react'
 import { useCart } from '@/components/cart-provider'
 import { createClient } from '@/lib/supabase/client'
-import { CardWishlistButton } from '@/components/card-wishlist-button'
+import { CardWishlistButton } from '@/components/card-wishlist-button' // Aapka existing component
 import { useRouter } from 'next/navigation'
 import { Toast, ToastType } from '@/components/toast'
 
@@ -60,8 +60,7 @@ function ProductCard({ product, onAdd, onBuyNow, onShowToast }: {
   return (
     <article className="group flex flex-col relative bg-white p-3 sm:p-4 rounded-md border border-[#ebe2d5] transition-all hover:border-[#a67c52] h-full">
       <Link href={`/shop/${product.id}`} className="block">
-        {/* Changed aspect ratio to wider rectangle to match screenshot */}
-        <div className="relative aspect-[4/3] overflow-hidden bg-[#f4ebe1] rounded-md mb-3 sm:mb-4">
+        <div className="relative aspect-[4/5] sm:aspect-[4/3] overflow-hidden bg-[#f4ebe1] rounded-md mb-2 sm:mb-3">
           <Image
             src={product.image || '/placeholder.jpg'}
             alt={product.name}
@@ -70,52 +69,54 @@ function ProductCard({ product, onAdd, onBuyNow, onShowToast }: {
             className="object-cover transition-transform duration-1000 ease-out group-hover:scale-105"
           />
           {product.tag && (
-            <span className="absolute left-2 top-2 bg-white/95 px-2 py-1 text-[8px] sm:text-[9px] font-semibold uppercase tracking-[.2em] text-[#3e2723] rounded shadow-sm">
+            <span className="absolute left-1.5 top-1.5 bg-white/95 px-1 py-0.5 text-[7px] sm:text-[9px] font-semibold uppercase tracking-[.1em] text-[#3e2723] rounded shadow-sm">
               {product.tag}
             </span>
           )}
-          <div className="absolute right-2 top-2 z-10 scale-90 sm:scale-100">
+          <div className="absolute right-1.5 top-1.5 z-10 scale-90 sm:scale-100 origin-top-right">
             <CardWishlistButton productId={product.id} />
           </div>
         </div>
       </Link>
 
-      <Link href={`/shop/${product.id}`} className="flex flex-col mt-0.5 flex-1">
-        <p className="text-[9px] sm:text-[10px] font-semibold uppercase tracking-[.2em] text-[#a67c52] mb-1">
+      <Link href={`/shop/${product.id}`} className="flex flex-col mt-0 flex-1">
+        <p className="text-[8px] sm:text-[9px] font-semibold uppercase tracking-[.15em] text-[#a67c52] mb-0.5">
           {product.category || 'COLLECTION'}
         </p>
-        <div className="flex flex-col min-[400px]:flex-row min-[400px]:justify-between items-start gap-1 min-[400px]:gap-2">
-          <h3 className="font-serif text-[15px] sm:text-[16px] leading-tight text-[#3e2723] group-hover:text-[#a67c52] transition-colors line-clamp-2">
+        
+        <div className="flex flex-col gap-0.5 mb-1">
+          <h3 className="font-serif text-[13px] sm:text-[15px] leading-tight text-[#3e2723] group-hover:text-[#a67c52] transition-colors line-clamp-2">
             {product.name}
           </h3>
-          <p className="text-[13px] sm:text-[14px] font-bold text-[#3e2723] whitespace-nowrap pt-0.5">
+          <p className="text-[11px] sm:text-[13px] font-bold text-[#3e2723]">
             {String(product.price).includes('PKR') ? product.price : `PKR ${Number(product.price).toLocaleString('en-PK')}`}
           </p>
         </div>
-        <p className="mt-1 text-[11px] sm:text-[12px] text-[#7a6b5d] line-clamp-1 mb-2">
+
+        <p className="text-[9px] sm:text-[11px] text-[#7a6b5d] line-clamp-1 mb-1">
           {product.notes || 'Signature Scent'}
         </p>
 
-        <div className="flex items-center gap-1.5 mb-3 mt-auto">
+        <div className="flex items-center gap-1 mb-2 mt-auto">
           <div className="flex text-[#a67c52]">
             {[1, 2, 3, 4, 5].map((star) => (
               <Star
                 key={star}
-                size={12}
+                size={10}
                 fill={star <= Number(avgRating) ? 'currentColor' : 'none'}
                 strokeWidth={1.5}
-                className="mr-[1px]"
+                className="mr-[0.5px] sm:w-[12px] sm:h-[12px]"
               />
             ))}
           </div>
-          <span className="text-[10px] text-[#7a6b5d] font-medium">({reviewCount})</span>
+          <span className="text-[8px] sm:text-[10px] text-[#7a6b5d] font-medium">({reviewCount})</span>
         </div>
       </Link>
 
       <div className="mt-auto">
         <button
           onClick={(e) => { e.preventDefault(); onBuyNow(); }}
-          className="w-full py-2.5 text-[11px] font-bold uppercase tracking-[.1em] text-white bg-[#3e2723] hover:bg-[#a67c52] transition-colors rounded"
+          className="w-full py-1.5 sm:py-2.5 text-[9px] sm:text-[11px] font-bold uppercase tracking-[.1em] text-white bg-[#3e2723] hover:bg-[#a67c52] transition-colors rounded"
         >
           Buy Now
         </button>
@@ -277,13 +278,22 @@ export function ZunllyHome({
   }
 
   const [hotSellingIndex, setHotSellingIndex] = useState(0)
+  const [isHotSellingPaused, setIsHotSellingPaused] = useState(false)
 
   useEffect(() => {
+    if (isHotSellingPaused) return
     const timer = setInterval(() => {
       setHotSellingIndex((prev) => (prev + 1) % hotSellingProducts.length)
     }, 3500)
     return () => clearInterval(timer)
-  }, [hotSellingProducts.length])
+  }, [hotSellingProducts.length, isHotSellingPaused])
+
+  const nextHotSelling = () => {
+    setHotSellingIndex((prev) => (prev + 1) % hotSellingProducts.length)
+  }
+  const prevHotSelling = () => {
+    setHotSellingIndex((prev) => (prev - 1 + hotSellingProducts.length) % hotSellingProducts.length)
+  }
 
   const getCarouselItems = () => {
     if (hotSellingProducts.length === 0) return []
@@ -377,7 +387,12 @@ export function ZunllyHome({
           {/* ICONS */}
           <div className="flex items-center gap-3 sm:gap-4 lg:gap-5">
             <button onClick={() => setSearchOpen(true)} className="hover:text-[#a67c52] p-1 transition-colors"><Search size={22} strokeWidth={1.5} /></button>
-            <Link href="/wishlist" className="hover:text-[#a67c52] p-1 hidden sm:block transition-colors"><Heart size={22} strokeWidth={1.5} /></Link>
+            
+            {/* Wishlist Heart - Mobile & Desktop */}
+            <Link href="/wishlist" className="hover:text-[#a67c52] p-1 transition-colors">
+              <Heart size={22} strokeWidth={1.5} />
+            </Link>
+
             {user ? (
               <Link href="/account" className="hover:text-[#a67c52] p-1 transition-colors">
                 <div className="h-8 w-8 rounded-full border border-[#a67c52] bg-white flex items-center justify-center text-[#3e2723] font-bold text-sm">
@@ -438,9 +453,9 @@ export function ZunllyHome({
       )}
 
       <main>
-        {/* HERO */}
+        {/* HERO SECTION */}
         <section
-          className="relative h-[70vh] min-h-[480px] sm:h-[85vh] sm:min-h-[600px] w-full overflow-hidden bg-[#3e2723]"
+          className="relative h-[75vh] min-h-[500px] sm:h-[85vh] sm:min-h-[600px] w-full overflow-hidden bg-[#3e2723]"
           onMouseEnter={() => setIsPaused(true)}
           onMouseLeave={() => setIsPaused(false)}
         >
@@ -467,21 +482,25 @@ export function ZunllyHome({
           </AnimatePresence>
 
           <div className="relative mx-auto flex h-full max-w-[1440px] items-center px-5 sm:px-6 lg:px-16 z-10 pointer-events-none">
-            <div className="max-w-xl text-white pt-8 sm:pt-10 lg:pt-0 pointer-events-auto">
+            <div className="max-w-[90%] sm:max-w-md text-white pt-4 sm:pt-10 lg:pt-0 pointer-events-auto">
               <AnimatePresence mode="wait">
                 <motion.div key={activeSlide} variants={textVariants} initial="enter" animate="center" exit="exit">
-                  <p className="mb-3 text-[11px] sm:text-[10px] font-semibold uppercase tracking-[.25em] sm:tracking-[.35em] text-[#d8c49a]">{slide.eyebrow}</p>
-                  <h1 className="font-serif text-5xl min-[400px]:text-6xl leading-[1.05] sm:text-6xl md:text-7xl md:text-[5.5rem]">
+                  <p className="mb-2 sm:mb-3 text-[10px] sm:text-[10px] font-semibold uppercase tracking-[.2em] sm:tracking-[.35em] text-[#d8c49a]">{slide.eyebrow}</p>
+                  <h1 className="font-serif text-[2.5rem] min-[400px]:text-5xl leading-[1.1] sm:text-6xl md:text-7xl md:text-[5.5rem]">
                     {slide.titleLine1}<br />
                     <em className="font-light text-white/90">{slide.titleLine2}</em>
                   </h1>
-                  <p className="mt-5 sm:mt-8 max-w-sm text-sm sm:text-sm leading-relaxed text-white/85">{slide.description}</p>
+                  <p className="mt-3 sm:mt-8 max-w-sm text-[13px] sm:text-sm leading-relaxed text-white/85">{slide.description}</p>
                 </motion.div>
               </AnimatePresence>
 
-              <div className="mt-7 sm:mt-10 flex flex-col gap-3 sm:flex-row sm:gap-4">
-                <Link href="/shop" className="bg-white px-7 sm:px-8 py-3.5 sm:py-4 text-center text-[11px] sm:text-[10px] font-bold uppercase tracking-[.12em] sm:tracking-[.15em] text-[#3e2723] transition-transform hover:scale-105 hover:bg-[#d8c49a]">Shop Collection</Link>
-                <Link href="/about" className="border border-white/40 px-7 sm:px-8 py-3.5 sm:py-4 text-center text-[11px] sm:text-[10px] font-bold uppercase tracking-[.12em] sm:tracking-[.15em] text-white transition-all hover:bg-white hover:text-[#3e2723]">Our Story</Link>
+              <div className="mt-5 sm:mt-10 flex flex-col gap-2.5 sm:flex-row sm:gap-4">
+                <Link href="/shop" className="bg-white px-6 sm:px-8 py-3 sm:py-4 text-center text-[10px] sm:text-[10px] font-bold uppercase tracking-[.12em] sm:tracking-[.15em] text-[#3e2723] transition-transform hover:scale-105 hover:bg-[#d8c49a]">
+                  Shop Collection
+                </Link>
+                <Link href="/about" className="border border-white/40 px-6 sm:px-8 py-3 sm:py-4 text-center text-[10px] sm:text-[10px] font-bold uppercase tracking-[.12em] sm:tracking-[.15em] text-white transition-all hover:bg-white hover:text-[#3e2723]">
+                  Our Story
+                </Link>
               </div>
             </div>
           </div>
@@ -489,9 +508,9 @@ export function ZunllyHome({
           <button onClick={prevSlide} aria-label="Previous slide" className="hidden md:flex absolute left-4 lg:left-8 top-1/2 -translate-y-1/2 z-20 h-11 w-11 items-center justify-center rounded-full bg-white/15 hover:bg-white/30 backdrop-blur-md border border-white/20 text-white transition-all hover:scale-110"><ArrowLeft size={20} /></button>
           <button onClick={nextSlide} aria-label="Next slide" className="hidden md:flex absolute right-4 lg:right-8 top-1/2 -translate-y-1/2 z-20 h-11 w-11 items-center justify-center rounded-full bg-white/15 hover:bg-white/30 backdrop-blur-md border border-white/20 text-white transition-all hover:scale-110"><ArrowRight size={20} /></button>
 
-          <div className="absolute bottom-6 sm:bottom-8 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2.5">
+          <div className="absolute bottom-5 sm:bottom-8 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2.5">
             {heroSlides.map((_, idx) => (
-              <button key={idx} onClick={() => goToSlide(idx, idx > activeSlide ? 1 : -1)} aria-label={`Go to slide ${idx + 1}`} className={`relative transition-all duration-500 rounded-full ${activeSlide === idx ? 'w-10 sm:w-10 h-2.5 sm:h-2 bg-[#d8c49a]' : 'w-2.5 h-2.5 sm:w-2 sm:h-2 bg-white/50 hover:bg-white/80'}`}>
+              <button key={idx} onClick={() => goToSlide(idx, idx > activeSlide ? 1 : -1)} aria-label={`Go to slide ${idx + 1}`} className={`relative transition-all duration-500 rounded-full ${activeSlide === idx ? 'w-8 sm:w-10 h-2 sm:h-2 bg-[#d8c49a]' : 'w-2 h-2 sm:w-2 sm:h-2 bg-white/50 hover:bg-white/80'}`}>
                 {activeSlide === idx && (
                   <motion.span key={`progress-${activeSlide}-${isPaused}`} initial={{ width: '0%' }} animate={{ width: isPaused ? '0%' : '100%' }} transition={{ duration: AUTOPLAY_MS / 1000, ease: 'linear' }} className="absolute inset-0 rounded-full bg-white" />
                 )}
@@ -514,9 +533,22 @@ export function ZunllyHome({
                 <Link href="/shop" className="text-[11px] sm:text-[10px] font-bold uppercase tracking-[.12em] sm:tracking-[.15em] border-b-2 border-[#3e2723] pb-1 hover:text-[#a67c52] hover:border-[#a67c52] transition-colors flex items-center gap-2 w-fit">View All <ArrowRight size={15} className="sm:w-[14px] sm:h-[14px]" /></Link>
               </motion.div>
 
-              {/* CAROUSEL TRACK - Adjusted Height & Width */}
-              <div className="relative w-full h-[420px] sm:h-[460px] flex justify-center items-center perspective-[1400px] overflow-hidden">
-                <div className="relative w-full max-w-[1050px] h-full flex items-center justify-center">
+              <div 
+                className="relative w-full h-[480px] sm:h-[500px] md:h-[520px] flex justify-center items-center perspective-[1400px] overflow-hidden"
+                onMouseEnter={() => setIsHotSellingPaused(true)}
+                onMouseLeave={() => setIsHotSellingPaused(false)}
+              >
+                {/* LEFT ARROW FOR HOT SELLING */}
+                <button onClick={prevHotSelling} aria-label="Previous product" className="absolute left-2 sm:left-4 md:left-8 top-1/2 -translate-y-1/2 z-40 h-10 w-10 sm:h-12 sm:w-12 flex items-center justify-center rounded-full bg-white/80 hover:bg-white text-[#3e2723] shadow-md border border-[#ebe2d5] transition-all hover:scale-110">
+                  <ArrowLeft size={20} />
+                </button>
+
+                {/* RIGHT ARROW FOR HOT SELLING */}
+                <button onClick={nextHotSelling} aria-label="Next product" className="absolute right-2 sm:right-4 md:right-8 top-1/2 -translate-y-1/2 z-40 h-10 w-10 sm:h-12 sm:w-12 flex items-center justify-center rounded-full bg-white/80 hover:bg-white text-[#3e2723] shadow-md border border-[#ebe2d5] transition-all hover:scale-110">
+                  <ArrowRight size={20} />
+                </button>
+
+                <div className="relative w-full max-w-[1200px] h-full flex items-center justify-center">
                   {carouselItems.map((item) => {
                     const isCenter = item.position === 'center'
                     const isLeft = item.position === 'left'
@@ -526,16 +558,16 @@ export function ZunllyHome({
                       <motion.div
                         key={item.key}
                         animate={{
-                          x: isLeft ? '-55%' : isRight ? '55%' : '0%',
-                          y: isCenter ? 0 : 24, // Center perfectly aligned, sides slightly pushed down
-                          scale: isCenter ? 1 : 0.85,
-                          rotateY: isLeft ? 12 : isRight ? -12 : 0,
+                          x: isLeft ? '-65%' : isRight ? '65%' : '0%', 
+                          y: isCenter ? 0 : 30, 
+                          scale: isCenter ? 1 : 0.72, 
+                          rotateY: isLeft ? 15 : isRight ? -15 : 0,
                           rotateZ: isLeft ? -2 : isRight ? 2 : 0,
-                          opacity: isCenter ? 1 : 0.9,
+                          opacity: isCenter ? 1 : 0.7, 
                           zIndex: isCenter ? 30 : 20,
                         }}
                         transition={{ type: 'spring', stiffness: 130, damping: 20, mass: 0.7 }}
-                        className="absolute w-[260px] sm:w-[300px] md:w-[320px]" // Slightly wider cards
+                        className="absolute w-[280px] sm:w-[300px] md:w-[320px]"
                         style={{ transformStyle: 'preserve-3d' }}
                       >
                         <ProductCard
@@ -590,7 +622,7 @@ export function ZunllyHome({
                 </div>
                 <Link href="/shop" className="text-[11px] sm:text-[10px] font-bold uppercase tracking-[.12em] sm:tracking-[.15em] border-b-2 border-[#3e2723] pb-1 hover:text-[#a67c52] hover:border-[#a67c52] transition-colors flex items-center gap-2 w-fit">View All <ArrowRight size={15} className="sm:w-[14px] sm:h-[14px]" /></Link>
               </motion.div>
-              <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-50px" }} variants={staggerContainer} className="grid grid-cols-2 gap-2.5 sm:gap-4 md:gap-5 lg:grid-cols-4 lg:gap-6">
+              <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-50px" }} variants={staggerContainer} className="grid grid-cols-2 gap-2 sm:gap-4 md:gap-5 lg:grid-cols-4 lg:gap-6">
                 {bestSellingProducts.map((product) => (
                   <ProductCard key={product.id} product={product} onAdd={() => addToCart(product)} onBuyNow={() => buyNow(product)} onShowToast={showToast} />
                 ))}
@@ -627,11 +659,10 @@ export function ZunllyHome({
           </div>
         </section>
 
-        {/* NEW LOGO & DESCRIPTION SECTION (Text Left, Image Right) */}
+        {/* NEW LOGO & DESCRIPTION SECTION */}
         <section className="bg-[#f4ebe1] border-t border-[#ded8cc] py-14 sm:py-20 px-4 sm:px-5 lg:px-12">
           <div className="mx-auto max-w-[1200px] grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center">
             
-            {/* Left Box: Text Content */}
             <motion.div 
               initial="hidden" 
               whileInView="visible" 
@@ -665,7 +696,6 @@ export function ZunllyHome({
               </motion.div>
             </motion.div>
 
-            {/* Right Box: Logo Image (Changed src to /logo.png) */}
             <motion.div 
               initial={{ opacity: 0, x: 30 }} 
               whileInView={{ opacity: 1, x: 0 }} 
