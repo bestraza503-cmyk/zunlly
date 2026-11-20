@@ -7,7 +7,7 @@ import { motion, AnimatePresence, Variants } from 'framer-motion'
 import { ArrowRight, ArrowLeft, Check, Heart, Menu, Search, ShoppingBag, Sparkles, UserRound, X, Star, Flame, Truck, ShieldCheck, RotateCcw, ChevronDown } from 'lucide-react'
 import { useCart } from '@/components/cart-provider'
 import { createClient } from '@/lib/supabase/client'
-import { CardWishlistButton } from '@/components/card-wishlist-button' // Aapka existing component
+import { CardWishlistButton } from '@/components/card-wishlist-button'
 import { useRouter } from 'next/navigation'
 import { Toast, ToastType } from '@/components/toast'
 
@@ -136,6 +136,9 @@ export function ZunllyHome({
   const [user, setUser] = useState<any>(null)
   const [shopHovered, setShopHovered] = useState(false)
 
+  // ✅ State (Ab iski zaroorat mobile pe 4 products dikhane ke liye hai)
+  const [visibleBestSellers, setVisibleBestSellers] = useState(4)
+
   const [toast, setToast] = useState<{ message: string; type: ToastType; visible: boolean }>({ message: '', type: 'cart', visible: false })
 
   const supabase = createClient()
@@ -166,7 +169,7 @@ export function ZunllyHome({
     setToast({ message, type, visible: true })
   }
 
-  const filtered = useMemo(() => products.filter((p) => `${p.name} ${p.category} ${p.notes}`.toLowerCase().includes(query.toLowerCase())), [products, query])
+  const filtered = useMemo(() => products?.filter((p) => `${p.name} ${p.category} ${p.notes}`.toLowerCase().includes(query.toLowerCase())) || [], [products, query])
 
   const addToCart = async (product: StoreProduct) => {
     await addCartItem({ id: product.id, name: product.name, price: Number(String(product.price).replace(/[^0-9.]/g, '')) || 0, image: product.image })
@@ -179,8 +182,8 @@ export function ZunllyHome({
   const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Account'
   const userInitial = userName.charAt(0).toUpperCase()
 
-  const hotSellingProducts = products.slice(0, 12)
-  const bestSellingProducts = products.length > 8 ? products.slice(8, 12) : products.slice(4, 8)
+  const hotSellingProducts = products?.slice(0, 12) || []
+  const bestSellingProducts = products?.slice(0, 12) || []
 
   const features = [
     { icon: Truck, title: 'Free Delivery', desc: 'On orders over PKR 10,000' },
@@ -281,7 +284,7 @@ export function ZunllyHome({
   const [isHotSellingPaused, setIsHotSellingPaused] = useState(false)
 
   useEffect(() => {
-    if (isHotSellingPaused) return
+    if (isHotSellingPaused || hotSellingProducts.length === 0) return
     const timer = setInterval(() => {
       setHotSellingIndex((prev) => (prev + 1) % hotSellingProducts.length)
     }, 3500)
@@ -289,9 +292,11 @@ export function ZunllyHome({
   }, [hotSellingProducts.length, isHotSellingPaused])
 
   const nextHotSelling = () => {
+    if (hotSellingProducts.length === 0) return
     setHotSellingIndex((prev) => (prev + 1) % hotSellingProducts.length)
   }
   const prevHotSelling = () => {
+    if (hotSellingProducts.length === 0) return
     setHotSellingIndex((prev) => (prev - 1 + hotSellingProducts.length) % hotSellingProducts.length)
   }
 
@@ -322,7 +327,7 @@ export function ZunllyHome({
       {/* ANNOUNCEMENT BAR */}
       <div className="bg-[#3e2723] py-2.5 sm:py-2 text-center">
         <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-[.15em] text-[#f4ebe1]">
-          Free Delivery Over Rs 5,000 · Cash on Delivery · 925 Sterling Silver
+          Free Delivery Over Rs 5,000 · Cash on Delivery · 
         </p>
       </div>
 
@@ -362,9 +367,9 @@ export function ZunllyHome({
                   >
                     {[
                       { label: 'ALL FRAGRANCES', href: '/shop' },
-                      { label: 'FOR HIM', href: '/category/for-him' },
-                      { label: 'FOR HER', href: '/category/for-her' },
-                      { label: 'UNISEX', href: '/category/unisex' },
+                      { label: 'FOR HIM', href: '/shop?category=for-him' },
+                      { label: 'FOR HER', href: '/shop?category=for-her' },
+                      { label: 'UNISEX', href: '/shop?category=unisex' },
                     ].map((item) => (
                       <Link
                         key={item.href}
@@ -388,7 +393,6 @@ export function ZunllyHome({
           <div className="flex items-center gap-3 sm:gap-4 lg:gap-5">
             <button onClick={() => setSearchOpen(true)} className="hover:text-[#a67c52] p-1 transition-colors"><Search size={22} strokeWidth={1.5} /></button>
             
-            {/* Wishlist Heart - Mobile & Desktop */}
             <Link href="/wishlist" className="hover:text-[#a67c52] p-1 transition-colors">
               <Heart size={22} strokeWidth={1.5} />
             </Link>
@@ -418,9 +422,9 @@ export function ZunllyHome({
               <Link href="/" onClick={() => setMenuOpen(false)}>HOME</Link>
               <Link href="/shop" onClick={() => setMenuOpen(false)}>SHOP</Link>
               <div className="pl-4 flex flex-col gap-3 border-l-2 border-[#a67c52]/40 text-[12px] text-[#7a6b5d]">
-                <Link href="/category/for-him" onClick={() => setMenuOpen(false)}>For Him</Link>
-                <Link href="/category/for-her" onClick={() => setMenuOpen(false)}>For Her</Link>
-                <Link href="/category/unisex" onClick={() => setMenuOpen(false)}>Unisex</Link>
+                <Link href="/shop?category=for-him" onClick={() => setMenuOpen(false)}>For Him</Link>
+                <Link href="/shop?category=for-her" onClick={() => setMenuOpen(false)}>For Her</Link>
+                <Link href="/shop?category=unisex" onClick={() => setMenuOpen(false)}>Unisex</Link>
               </div>
               <Link href="/about" onClick={() => setMenuOpen(false)}>OUR STORY</Link>
               <Link href="/track-order" onClick={() => setMenuOpen(false)}>TRACK ORDER</Link>
@@ -538,12 +542,9 @@ export function ZunllyHome({
                 onMouseEnter={() => setIsHotSellingPaused(true)}
                 onMouseLeave={() => setIsHotSellingPaused(false)}
               >
-                {/* LEFT ARROW FOR HOT SELLING */}
                 <button onClick={prevHotSelling} aria-label="Previous product" className="absolute left-2 sm:left-4 md:left-8 top-1/2 -translate-y-1/2 z-40 h-10 w-10 sm:h-12 sm:w-12 flex items-center justify-center rounded-full bg-white/80 hover:bg-white text-[#3e2723] shadow-md border border-[#ebe2d5] transition-all hover:scale-110">
                   <ArrowLeft size={20} />
                 </button>
-
-                {/* RIGHT ARROW FOR HOT SELLING */}
                 <button onClick={nextHotSelling} aria-label="Next product" className="absolute right-2 sm:right-4 md:right-8 top-1/2 -translate-y-1/2 z-40 h-10 w-10 sm:h-12 sm:w-12 flex items-center justify-center rounded-full bg-white/80 hover:bg-white text-[#3e2723] shadow-md border border-[#ebe2d5] transition-all hover:scale-110">
                   <ArrowRight size={20} />
                 </button>
@@ -593,9 +594,9 @@ export function ZunllyHome({
           </motion.div>
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-50px" }} variants={staggerContainer} className="grid gap-3 sm:gap-6 md:grid-cols-3">
             {[
-              ['For Him', '/category/for-him', 'https://images.unsplash.com/photo-1523293182086-7651a899d37f?auto=format&fit=crop&w=900&q=85'],
-              ['For Her', '/category/for-her', 'https://images.unsplash.com/photo-1594035910387-fea47794261f?auto=format&fit=crop&w=900&q=85'],
-              ['Unisex', '/category/unisex', 'https://images.unsplash.com/photo-1608571423902-eed4a5ad8108?auto=format&fit=crop&w=900&q=85']
+              ['For Him', '/shop?category=for-him', 'https://images.unsplash.com/photo-1523293182086-7651a899d37f?auto=format&fit=crop&w=900&q=85'],
+              ['For Her', '/shop?category=for-her', 'https://images.unsplash.com/photo-1594035910387-fea47794261f?auto=format&fit=crop&w=900&q=85'],
+              ['Unisex', '/shop?category=unisex', 'https://images.unsplash.com/photo-1608571423902-eed4a5ad8108?auto=format&fit=crop&w=900&q=85']
             ].map(([name, href, image]) => (
               <motion.div key={name} variants={fadeUp}>
                 <Link href={href} className="group relative block h-[260px] sm:h-[450px] overflow-hidden bg-[#ded7cd] rounded-sm">
@@ -622,11 +623,34 @@ export function ZunllyHome({
                 </div>
                 <Link href="/shop" className="text-[11px] sm:text-[10px] font-bold uppercase tracking-[.12em] sm:tracking-[.15em] border-b-2 border-[#3e2723] pb-1 hover:text-[#a67c52] hover:border-[#a67c52] transition-colors flex items-center gap-2 w-fit">View All <ArrowRight size={15} className="sm:w-[14px] sm:h-[14px]" /></Link>
               </motion.div>
+              
               <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-50px" }} variants={staggerContainer} className="grid grid-cols-2 gap-2 sm:gap-4 md:gap-5 lg:grid-cols-4 lg:gap-6">
-                {bestSellingProducts.map((product) => (
-                  <ProductCard key={product.id} product={product} onAdd={() => addToCart(product)} onBuyNow={() => buyNow(product)} onShowToast={showToast} />
-                ))}
+                {bestSellingProducts.map((product, index) => {
+                  const isHiddenOnMobile = index >= visibleBestSellers;
+                  
+                  return (
+                    <div key={product.id} className={isHiddenOnMobile ? 'hidden sm:block' : 'block'}>
+                      <ProductCard 
+                        product={product} 
+                        onAdd={() => addToCart(product)} 
+                        onBuyNow={() => buyNow(product)} 
+                        onShowToast={showToast} 
+                      />
+                    </div>
+                  )
+                })}
               </motion.div>
+
+              {/* ✅ VIEW MORE LINK (Mobile Only) - Direct Shop Page pe jayega */}
+              <div className="mt-8 flex justify-center sm:hidden">
+                <Link
+                  href="/shop"
+                  className="px-8 py-3.5 border border-[#3e2723] text-[#3e2723] text-[11px] font-bold uppercase tracking-[.15em] hover:bg-[#3e2723] hover:text-white transition-all duration-300 rounded-sm flex items-center gap-2 group"
+                >
+                  View More Products
+                  <ArrowRight size={14} className="transition-transform group-hover:translate-x-1" />
+                </Link>
+              </div>
             </div>
           </section>
         )}
@@ -775,9 +799,9 @@ export function ZunllyHome({
             <h4 className="font-serif text-[17px] sm:text-[18px] text-[#d8c49a] mb-3 sm:mb-4">Shop With Us</h4>
             <ul className="space-y-2.5 sm:space-y-3 text-[13px] text-gray-400">
               <li><Link href="/shop" className="hover:text-[#d8c49a] transition-colors">All Fragrances</Link></li>
-              <li><Link href="/category/for-him" className="hover:text-[#d8c49a] transition-colors">For Him</Link></li>
-              <li><Link href="/category/for-her" className="hover:text-[#d8c49a] transition-colors">For Her</Link></li>
-              <li><Link href="/category/unisex" className="hover:text-[#d8c49a] transition-colors">Unisex</Link></li>
+              <li><Link href="/shop?category=for-him" className="hover:text-[#d8c49a] transition-colors">For Him</Link></li>
+              <li><Link href="/shop?category=for-her" className="hover:text-[#d8c49a] transition-colors">For Her</Link></li>
+              <li><Link href="/shop?category=unisex" className="hover:text-[#d8c49a] transition-colors">Unisex</Link></li>
             </ul>
           </div>
           <div>
