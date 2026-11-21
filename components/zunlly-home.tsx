@@ -127,7 +127,7 @@ function ProductCard({ product, onAdd, onBuyNow, onShowToast }: {
 
 export function ZunllyHome({
   products,
-  heroImage = 'https://images.unsplash.com/photo-1594035910387-fea47794261f?auto=format&fit=crop&w=2000&q=90'
+  heroImage = '/img1.png'
 }: { products: StoreProduct[]; heroImage?: string }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
@@ -136,7 +136,6 @@ export function ZunllyHome({
   const [user, setUser] = useState<any>(null)
   const [shopHovered, setShopHovered] = useState(false)
 
-  // ✅ State (Ab iski zaroorat mobile pe 4 products dikhane ke liye hai)
   const [visibleBestSellers, setVisibleBestSellers] = useState(4)
 
   const [toast, setToast] = useState<{ message: string; type: ToastType; visible: boolean }>({ message: '', type: 'cart', visible: false })
@@ -194,21 +193,21 @@ export function ZunllyHome({
 
   const heroSlides = useMemo(() => [
     {
-      image: 'https://images.unsplash.com/photo-1615634260167-c8cdede054de?auto=format&fit=crop&w=2000&q=90',
+      image: '/img1.png',
       eyebrow: 'The Signature Collection',
       titleLine1: 'Scent is',
       titleLine2: 'memory.',
       description: 'Considered fragrances that linger beyond the moment. Composed with intention, worn with confidence.',
     },
     {
-      image: 'https://images.unsplash.com/photo-1594035910387-fea47794261f?auto=format&fit=crop&w=2000&q=90',
+      image: '/img2.png',
       eyebrow: 'For Him & For Her',
       titleLine1: 'Wear your',
       titleLine2: 'story.',
       description: 'From bold oud to soft florals — discover fragrances that speak louder than words, and last longer than moments.',
     },
     {
-      image: 'https://images.unsplash.com/photo-1541643600914-78b084683601?auto=format&fit=crop&w=2000&q=90',
+      image: '/img3.png',
       eyebrow: 'New Arrivals',
       titleLine1: 'Find your',
       titleLine2: 'forever scent.',
@@ -393,7 +392,7 @@ export function ZunllyHome({
           <div className="flex items-center gap-3 sm:gap-4 lg:gap-5">
             <button onClick={() => setSearchOpen(true)} className="hover:text-[#a67c52] p-1 transition-colors"><Search size={22} strokeWidth={1.5} /></button>
             
-            <Link href="/wishlist" className="hover:text-[#a67c52] p-1 transition-colors">
+            <Link href="/account/wishlist" className="hover:text-[#a67c52] p-1 transition-colors">
               <Heart size={22} strokeWidth={1.5} />
             </Link>
 
@@ -594,9 +593,9 @@ export function ZunllyHome({
           </motion.div>
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-50px" }} variants={staggerContainer} className="grid gap-3 sm:gap-6 md:grid-cols-3">
             {[
-              ['For Him', '/shop?category=for-him', 'https://images.unsplash.com/photo-1523293182086-7651a899d37f?auto=format&fit=crop&w=900&q=85'],
-              ['For Her', '/shop?category=for-her', 'https://images.unsplash.com/photo-1594035910387-fea47794261f?auto=format&fit=crop&w=900&q=85'],
-              ['Unisex', '/shop?category=unisex', 'https://images.unsplash.com/photo-1608571423902-eed4a5ad8108?auto=format&fit=crop&w=900&q=85']
+              ['For Him', '/shop?category=for-him', '/img2.png'],
+              ['For Her', '/shop?category=for-her', '/img1.png'],
+              ['Unisex', '/shop?category=unisex', '/img3.png']
             ].map(([name, href, image]) => (
               <motion.div key={name} variants={fadeUp}>
                 <Link href={href} className="group relative block h-[260px] sm:h-[450px] overflow-hidden bg-[#ded7cd] rounded-sm">
@@ -641,7 +640,6 @@ export function ZunllyHome({
                 })}
               </motion.div>
 
-              {/* ✅ VIEW MORE LINK (Mobile Only) - Direct Shop Page pe jayega */}
               <div className="mt-8 flex justify-center sm:hidden">
                 <Link
                   href="/shop"
@@ -660,7 +658,7 @@ export function ZunllyHome({
           <div className="grid items-center gap-8 sm:gap-12 lg:grid-cols-2 lg:gap-24">
             <motion.div initial={{ opacity: 0, x: -50 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ duration: 0.8 }} className="relative">
               <div className="relative aspect-[4/5] w-full">
-                <Image src="https://images.unsplash.com/photo-1547887537-6158d64c35b3?auto=format&fit=crop&w=1000&q=85" alt="ZUNLLY Craftsmanship" fill sizes="(max-width: 1024px) 100vw, 50vw" className="object-cover" />
+                <Image src="/img3.png" alt="ZUNLLY Craftsmanship" fill sizes="(max-width: 1024px) 100vw, 50vw" className="object-cover" />
               </div>
               <div className="absolute -bottom-4 sm:-bottom-6 -right-2 sm:-right-4 border border-[#cdbb91] bg-white px-4 sm:px-8 py-3 sm:py-6">
                 <p className="font-serif text-3xl sm:text-4xl text-[#a67c52]">01</p>
@@ -850,5 +848,5 @@ export function ZunllyHome({
         }
       `}</style>
     </div>
-  )
+  ) 
 }

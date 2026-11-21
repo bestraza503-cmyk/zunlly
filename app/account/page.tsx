@@ -14,6 +14,7 @@ type Order = {
   order_number: string | null
   status: string
   total: number
+  total_amount: number // 🔥 Naya column add kiya
   created_at: string
   order_items: OrderItem[]
 }
@@ -95,10 +96,11 @@ export default async function AccountPage() {
   const { data: profile } = await supabase.from('profiles').select('full_name, phone, role').eq('id', user.id).maybeSingle()
 
   // 2. Fetch Orders with Items
+  // 🔥 YAHAN CHANGE HAI: total ki jagah total_amount fetch kiya hai
   const { data: ordersData } = await supabase
     .from('orders')
     .select(`
-      id, order_number, status, total, created_at,
+      id, order_number, status, total_amount, created_at,
       order_items ( id, product_id, product_name )
     `)
     .eq('customer_id', user.id)
@@ -120,7 +122,9 @@ export default async function AccountPage() {
     .eq('user_id', user.id)
 
   const orders = (ordersData as Order[] | null) ?? []
-  const totalSpent = orders.reduce((sum, o) => sum + Number(o.total || 0), 0)
+  
+  // 🔥 YAHAN CHANGE HAI: Total Spent calculate karte waqt total_amount use kiya hai
+  const totalSpent = orders.reduce((sum, o) => sum + Number(o.total_amount || 0), 0)
   const activeOrders = orders.filter((o) => !['delivered', 'cancelled'].includes((o.status || '').toLowerCase())).length
 
   const displayName = profile?.full_name || user.email?.split('@')[0] || 'You'
@@ -225,7 +229,8 @@ export default async function AccountPage() {
                             </div>
                           </div>
                           <div className="flex shrink-0 items-center gap-2">
-                            <p className="font-semibold text-[#c46c3b]">PKR {Number(order.total).toLocaleString('en-PK')}</p>
+                            {/* 🔥 YAHAN CHANGE HAI: total_amount use kiya hai */}
+                            <p className="font-semibold text-[#c46c3b]">PKR {Number(order.total_amount || 0).toLocaleString('en-PK')}</p>
                           </div>
                         </div>
 
