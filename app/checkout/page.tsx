@@ -10,6 +10,8 @@ import { Banknote, CreditCard, UploadCloud, CheckCircle2, ShieldCheck, X, User }
 
 type PaymentMethod = 'cod' | 'advance'
 const ADVANCE_DISCOUNT_PERCENT = 5
+const FREE_SHIPPING_THRESHOLD = 5000
+const SHIPPING_FEE = 250
 
 function CheckoutContent() {
   const router = useRouter()
@@ -56,19 +58,23 @@ function CheckoutContent() {
         }))
       }
 
-      // 2. Items fetch karo
+      // ✅ 2. Items fetch karo
       if (buyNowId) {
         const { data: product } = await supabase
           .from('products')
-          .select('id, name, price, images')
+          .select('id, name, price, sale_price, sale_end_date, images')
           .eq('id', buyNowId)
           .single()
 
         if (product) {
+          // ✅ Sale Price Calculate karo
+          const isOnSale = !!(product.sale_price && product.sale_end_date && new Date(product.sale_end_date) > new Date())
+          const finalPrice = isOnSale ? (product.sale_price || product.price) : product.price
+
           setCheckoutItems([{
             id: product.id,
             name: product.name,
-            price: Number(product.price),
+            price: Number(finalPrice), // Ab sale price jayegi
             image: product.images?.[0] || '',
             quantity: buyQty
           }])
@@ -82,7 +88,11 @@ function CheckoutContent() {
   }, [buyNowId, buyQty, cartItems, supabase])
 
   const numericTotal = useMemo(() => checkoutItems.reduce((sum, item) => sum + (Number(item.price) * item.quantity), 0), [checkoutItems])
-  const shipping = numericTotal >= 10000 ? 0 : 250
+  
+  // ✅ FREE DELIVERY: 5000 ya usse upar
+  const shipping = numericTotal >= FREE_SHIPPING_THRESHOLD ? 0 : SHIPPING_FEE
+  const amountToFreeShipping = FREE_SHIPPING_THRESHOLD - numericTotal
+  
   const totalBeforeDiscount = numericTotal + shipping
   const discount = paymentMethod === 'advance' && totalBeforeDiscount > 0 ? Math.round((totalBeforeDiscount * ADVANCE_DISCOUNT_PERCENT) / 100) : 0
   const grandTotal = Math.max(0, totalBeforeDiscount - discount)
@@ -117,12 +127,11 @@ function CheckoutContent() {
       formData.append('email', form.email)
       formData.append('address', form.address)
       formData.append('city', form.city)
-      formData.append('postalCode', form.postalCode)
+      formData.append('postalCode', form.postalCode || '')
       formData.append('notes', form.notes)
       formData.append('paymentMethod', paymentMethod)
       formData.append('idempotencyKey', idempotencyKey)
       
-      // ✅ DEBUG LOG: Check karo ke total amount sahi jaa raha hai
       console.log("🚀 Total Amount sent to API:", grandTotal) 
       formData.append('total_amount', grandTotal.toString()) 
       
@@ -211,7 +220,16 @@ function CheckoutContent() {
                   <label className="grid gap-2 text-sm font-medium">Complete Address<textarea required value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} className={inputClass} rows={3} placeholder="House/Flat no, Street, Area" /></label>
                   <div className="grid gap-4 sm:grid-cols-2">
                     <label className="grid gap-2 text-sm font-medium">City<input required value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} className={inputClass} placeholder="Karachi" /></label>
-                    <label className="grid gap-2 text-sm font-medium">Postal Code<input required value={form.postalCode} onChange={(e) => setForm({ ...form, postalCode: e.target.value })} className={inputClass} placeholder="74000" /></label>
+                    {/* ✅ Postal Code — Optional */}
+                    <label className="grid gap-2 text-sm font-medium">
+                      Postal Code <span className="text-[10px] font-normal uppercase tracking-wider text-[#9b9387]">(Optional)</span>
+                      <input
+                        value={form.postalCode}
+                        onChange={(e) => setForm({ ...form, postalCode: e.target.value })}
+                        className={inputClass}
+                        placeholder="74000"
+                      />
+                    </label>
                   </div>
                 </div>
               </section>
@@ -233,7 +251,7 @@ function CheckoutContent() {
                   {paymentMethod === 'advance' && (
                     <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
                       <div className="mt-6 border-t border-[#e6e1d9] pt-6">
-                        <div className="bg-[#f8f7f4] border border-[#e6e1d9] p-5 mb-6"><p className="font-semibold text-sm mb-3">Please transfer the amount to:</p><div className="grid gap-2 text-sm text-[#827b70]"><p>Bank: <strong className="text-[#292722]">Meezan Bank</strong></p><p>Account Title: <strong className="text-[#292722]">ZUNLLY</strong></p><p>Account #: <strong className="text-[#292722] text-lg">01234567890123</strong></p><p>JazzCash/EasyPaisa: <strong className="text-[#292722] text-lg">0302 8770999</strong></p></div></div>
+                        <div className="bg-[#f8f7f4] border border-[#e6e1d9] p-5 mb-6"><p className="font-semibold text-sm mb-3">Please transfer the amount to:</p><div className="grid gap-2 text-sm text-[#827b70]"><p>Account Title: <strong className="text-[#292722]">Muhammad Ali RAZA</strong></p><p>Jazzcash <strong className="text-[#292722] text-lg">0302 8770999</strong></p><p>EasyPaisa: <strong className="text-[#292722] text-lg">0302 8770999</strong></p></div></div>
                         <div>
                           <p className="mb-2 text-sm font-medium">Upload Payment Screenshot</p>
                           {!screenshotPreview ? (
@@ -264,7 +282,24 @@ function CheckoutContent() {
                 </div>
                 <div className="space-y-3 text-sm text-[#d2cec7]">
                   <div className="flex justify-between"><span>Subtotal</span><span>PKR {formatPrice(numericTotal)}</span></div>
-                  <div className="flex justify-between"><span>Delivery</span><span>{shipping === 0 ? 'Free' : `PKR ${formatPrice(shipping)}`}</span></div>
+                  
+                  {/* ✅ DELIVERY ROW + FREE HINT */}
+                  <div>
+                    <div className="flex justify-between">
+                      <span>Delivery</span>
+                      {shipping === 0 ? (
+                        <span className="font-semibold text-green-400">FREE 🎉</span>
+                      ) : (
+                        <span>PKR {formatPrice(shipping)}</span>
+                      )}
+                    </div>
+                    {shipping > 0 && amountToFreeShipping > 0 && (
+                      <p className="mt-1 text-[10px] text-[#b49a62] text-right">
+                        Add PKR {formatPrice(amountToFreeShipping)} more for FREE delivery
+                      </p>
+                    )}
+                  </div>
+
                   {discount > 0 && <div className="flex justify-between font-medium text-[#b49a62]"><span>Advance Discount (5%)</span><span>− PKR {formatPrice(discount)}</span></div>}
                 </div>
                 <div className="mt-6 flex items-baseline justify-between border-t border-white/15 pt-6"><span className="text-sm uppercase tracking-widest text-[#9b9387]">Total</span><span className="font-serif text-3xl text-white">PKR {formatPrice(grandTotal)}</span></div>

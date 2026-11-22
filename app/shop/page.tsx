@@ -10,14 +10,17 @@ import { SlidersHorizontal, X, Search, ShoppingBag, UserRound, Star, Menu } from
 import { motion, AnimatePresence, Variants } from 'framer-motion'
 import { useCart } from '@/components/cart-provider'
 
+// ✅ Type update kiya
 type Product = {
   id: string
   name: string
   price: number
+  sale_price?: number | null
+  sale_end_date?: string | null
   images: any
   fragrance_notes: string[] | null
   category_id: string | null
-  category: string | null // ✅ Naya column add kiya gaya hai
+  category: string | null 
   product_reviews?: { rating: number }[]
 }
 
@@ -57,11 +60,11 @@ export default function ShopPage() {
       const { data: { session } } = await supabase.auth.getSession()
       setUser(session?.user || null)
 
-      // ✅ FAST QUERY: category field bhi fetch kar rahe hain
+      // ✅ FIX: sale_price aur sale_end_date fetch kiye
       const { data } = await supabase
         .from('products')
         .select(`
-          id, name, price, images, fragrance_notes, category_id, category,
+          id, name, price, sale_price, sale_end_date, images, fragrance_notes, category_id, category,
           product_reviews ( rating )
         `)
         .eq('status', 'published')
@@ -86,32 +89,51 @@ export default function ShopPage() {
     return Array.from(new Set(notes))
   }, [products])
 
-  // ✅ FIXED FILTER LOGIC
+  // ✅ Filter Logic with Sale Price calculation
   const displayProducts = useMemo(() => {
     let result = [...products]
     
-    // Search Filter
     if (searchQuery) result = result.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()))
     
-    // ✅ Category Filter (URL ki value ko Database se match kar rahe hain)
     if (currentCategory && currentCategory !== 'all') {
-      // URL se "for-him" aayega, usko "for him" banayenge taake case match ho jaye
       const formattedCategory = currentCategory.replace(/-/g, ' ').toLowerCase(); 
       result = result.filter(p => p.category?.toLowerCase() === formattedCategory)
     }
     
-    // Notes Filter
     if (currentNote) {
       result = result.filter(p => Array.isArray(p.fragrance_notes) && p.fragrance_notes.some(n => n.toLowerCase().includes(currentNote.toLowerCase())))
     }
     
-    // Price Filter
-    if (currentMin) result = result.filter(p => Number(p.price) >= Number(currentMin))
-    if (currentMax) result = result.filter(p => Number(p.price) <= Number(currentMax))
+    // ✅ Price filter mein final price (sale price) check karega
+    if (currentMin) {
+      result = result.filter(p => {
+        const isOnSale = !!(p.sale_price && p.sale_end_date && new Date(p.sale_end_date) > new Date())
+        const finalPrice = isOnSale ? Number(p.sale_price) : Number(p.price)
+        return finalPrice >= Number(currentMin)
+      })
+    }
+    if (currentMax) {
+      result = result.filter(p => {
+        const isOnSale = !!(p.sale_price && p.sale_end_date && new Date(p.sale_end_date) > new Date())
+        const finalPrice = isOnSale ? Number(p.sale_price) : Number(p.price)
+        return finalPrice <= Number(currentMax)
+      })
+    }
 
-    // Sorting
-    if (currentSort === 'price-asc') result.sort((a, b) => Number(a.price) - Number(b.price))
-    else if (currentSort === 'price-desc') result.sort((a, b) => Number(b.price) - Number(a.price))
+    // ✅ Sorting final price pe hogi
+    if (currentSort === 'price-asc') {
+      result.sort((a, b) => {
+        const aFinal = (a.sale_price && a.sale_end_date && new Date(a.sale_end_date) > new Date()) ? Number(a.sale_price) : Number(a.price)
+        const bFinal = (b.sale_price && b.sale_end_date && new Date(b.sale_end_date) > new Date()) ? Number(b.sale_price) : Number(b.price)
+        return aFinal - bFinal
+      })
+    } else if (currentSort === 'price-desc') {
+      result.sort((a, b) => {
+        const aFinal = (a.sale_price && a.sale_end_date && new Date(a.sale_end_date) > new Date()) ? Number(a.sale_price) : Number(a.price)
+        const bFinal = (b.sale_price && b.sale_end_date && new Date(b.sale_end_date) > new Date()) ? Number(b.sale_price) : Number(b.price)
+        return bFinal - aFinal
+      })
+    }
 
     return result
   }, [products, currentCategory, currentNote, currentSort, currentMin, currentMax, searchQuery])
@@ -140,7 +162,7 @@ export default function ShopPage() {
   return (
     <div className="min-h-screen bg-white text-[#0F1111] font-sans selection:bg-[#b49a62] selection:text-white">
       
-      {/* HEADER - FIXED LINKS */}
+      {/* HEADER */}
       <header className="sticky top-0 z-40 bg-white border-b border-gray-200 shadow-sm">
         <div className="mx-auto flex h-[80px] max-w-[1440px] items-center justify-between px-5 lg:px-12 relative">
           <div className="flex items-center gap-10 flex-1">
@@ -220,7 +242,7 @@ export default function ShopPage() {
         </div>
       </div>
 
-      {/* FILTER SIDEBAR - FIXED */}
+      {/* FILTER SIDEBAR */}
       <AnimatePresence>
         {isFilterOpen && (
           <>
@@ -235,9 +257,7 @@ export default function ShopPage() {
                 <div>
                   <h3 className="text-[13px] font-bold mb-4 text-gray-900">Category</h3>
                   <div className="flex flex-col gap-3">
-                    {[
-                      { label: 'All', value: 'all' }, { label: 'For Him', value: 'for-him' }, { label: 'For Her', value: 'for-her' }, { label: 'Unisex', value: 'unisex' }
-                    ].map((cat) => {
+                    {[{ label: 'All', value: 'all' }, { label: 'For Him', value: 'for-him' }, { label: 'For Her', value: 'for-her' }, { label: 'Unisex', value: 'unisex' }].map((cat) => {
                       const isActive = (!currentCategory && cat.value === 'all') || (currentCategory === cat.value);
                       return (
                         <button key={cat.value} onClick={() => { applyFilters('category', cat.value === 'all' ? null : cat.value); setIsFilterOpen(false); }} className={`text-left text-[14px] py-1 ${isActive ? 'font-bold text-[#b49a62]' : 'text-gray-600'}`}>
@@ -280,10 +300,9 @@ export default function ShopPage() {
         )}
       </AnimatePresence>
 
-      {/* PRODUCT GRID - FAST SKELETON LOADING */}
+      {/* PRODUCT GRID */}
       <section className="flex-1 px-5 py-10 md:px-8 lg:px-12 max-w-[1440px] mx-auto w-full">
         {loading ? (
-          // ✅ SKELETON LOADING (Fast feel)
           <div className="grid gap-6 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 animate-pulse">
             {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
               <div key={i} className="border border-gray-100 bg-white p-4 rounded-lg">
@@ -301,11 +320,29 @@ export default function ShopPage() {
               const reviewCount = reviews.length
               const avgRating = reviewCount > 0 ? (reviews.reduce((acc, rev) => acc + rev.rating, 0) / reviewCount).toFixed(1) : 0
 
+              // ✅ Card ke andar Sale calculation
+              const realPrice = Number(product.price)
+// ✅ Sahi (Fix)
+const hasSalePrice = product.sale_price !== null && product.sale_price !== undefined
+              const salePrice = hasSalePrice ? Number(product.sale_price) : 0
+              const isDateValid = product.sale_end_date ? new Date(product.sale_end_date) > new Date() : false
+              const isOnSale = hasSalePrice && salePrice > 0 && salePrice < realPrice && isDateValid
+              const finalPrice = isOnSale ? salePrice : realPrice
+              const discountPercent = isOnSale ? Math.round(((realPrice - finalPrice) / realPrice) * 100) : 0
+
               return (
                 <motion.div key={product.id} variants={itemVariants}>
-                  <Link href={`/shop/${product.id}`} className="group flex flex-col border border-gray-100 bg-white p-4 hover:shadow-xl transition-all duration-300 rounded-lg">
+                  <Link href={`/shop/${product.id}`} className="group flex flex-col border border-gray-100 bg-white p-4 hover:shadow-xl transition-all duration-300 rounded-lg relative">
+                    
                     <div className="relative aspect-square w-full overflow-hidden bg-[#f4f4f4] mb-4 rounded-md">
                       <Image src={imageUrl(product.images)} alt={product.name} fill sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw" className="object-cover transition duration-500 group-hover:scale-110" />
+                      
+                      {/* ✅ Sale Badge */}
+                      {isOnSale && (
+                        <span className="absolute left-2 top-2 bg-red-600 text-white px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-sm shadow-sm z-10">
+                          {discountPercent}% OFF
+                        </span>
+                      )}
                     </div>
 
                     <div className="flex flex-col flex-1">
@@ -321,8 +358,17 @@ export default function ShopPage() {
                       <p className="mt-1 text-[11px] text-gray-500 line-clamp-1">
                         {Array.isArray(product.fragrance_notes) ? product.fragrance_notes.join(' · ') : 'Signature Scent'}
                       </p>
-                      <div className="mt-2 flex items-baseline gap-2">
-                        <span className="text-[18px] font-bold text-gray-900">PKR {Number(product.price).toLocaleString('en-PK')}</span>
+                      
+                      {/* ✅ Price Display */}
+                      <div className="mt-2 flex items-baseline gap-2 flex-wrap">
+                        <span className="text-[18px] font-bold text-gray-900">
+                          PKR {finalPrice.toLocaleString('en-PK')}
+                        </span>
+                        {isOnSale && (
+                          <span className="text-[12px] text-gray-400 line-through">
+                            PKR {realPrice.toLocaleString('en-PK')}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </Link>

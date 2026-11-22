@@ -90,8 +90,8 @@ export default function ContactPage() {
                   </div>
                   <div>
                     <p className="text-sm font-medium text-[#9b9387] uppercase tracking-wider">Email Us</p>
-                    <a href="mailto:horizonprimeinnit@gmail.com" className="mt-1 block text-lg hover:text-[#b49a62] transition-colors break-all">
-                      horizonprimeinnit@gmail.com
+                    <a href="mailto:zunllyofficial@gmail.com" className="mt-1 block text-lg hover:text-[#b49a62] transition-colors break-all">
+                      zunllyofficial@gmail.com
                     </a>
                   </div>
                 </div>
@@ -129,7 +129,7 @@ export default function ContactPage() {
                   </div>
                   <div>
                     <p className="text-sm font-medium text-[#9b9387] uppercase tracking-wider">Location</p>
-                    <p className="mt-1 block text-lg">Karachi, Pakistan</p>
+                    <p className="mt-1 block text-lg">Rahim Yar Khan, Pakistan</p>
                   </div>
                 </div>
               </div>
@@ -140,8 +140,8 @@ export default function ContactPage() {
               <h3 className="font-serif text-xl mb-2">Concierge Hours</h3>
               <p className="text-sm text-[#9b9387] leading-relaxed">
                 Monday – Saturday<br />
-                10:00 AM – 8:00 PM (PKT)<br /><br />
-                We typically reply within 2-4 business hours.
+                8:00 AM – 10:00 PM (PKT)<br /><br />
+                We typically reply within 2-3 business hours.
               </p>
             </div>
           </div>

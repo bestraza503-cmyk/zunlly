@@ -38,7 +38,7 @@ export default function ShippingPage() {
               <div className="border border-[#e6e1d9] bg-white p-6">
                 <Banknote className="text-[#b49a62] mb-3" size={24} />
                 <h3 className="font-medium mb-2">Delivery Charges</h3>
-                <p className="text-sm text-[#827b70]">Flat rate of PKR 250 nationwide. <strong className="text-[#292722]">Free shipping</strong> on all orders above PKR 10,000.</p>
+                <p className="text-sm text-[#827b70]">Flat rate of PKR 250 nationwide. <strong className="text-[#292722]">Free shipping</strong> on all orders above PKR 5,000.</p>
               </div>
               <div className="border border-[#e6e1d9] bg-white p-6">
                 <PackageCheck className="text-[#b49a62] mb-3" size={24} />

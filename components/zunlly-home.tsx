@@ -11,9 +11,17 @@ import { CardWishlistButton } from '@/components/card-wishlist-button'
 import { useRouter } from 'next/navigation'
 import { Toast, ToastType } from '@/components/toast'
 
+// ✅ Type updated
 type StoreProduct = {
-  id: string; name: string; category: string; price: string | number;
-  image: string; notes: string; tag: string;
+  id: string; 
+  name: string; 
+  category: string; 
+  price: string | number;
+  sale_price?: string | number | null;
+  sale_end_date?: string | null;
+  image: string; 
+  notes: string; 
+  tag: string;
   product_reviews?: { rating: number }[];
 }
 
@@ -57,6 +65,17 @@ function ProductCard({ product, onAdd, onBuyNow, onShowToast }: {
   const reviewCount = reviews.length
   const avgRating = reviewCount > 0 ? (reviews.reduce((acc, rev) => acc + rev.rating, 0) / reviewCount).toFixed(1) : 0
 
+  // ✅ Safer Price Logic
+  const realPrice = Number(String(product.price).replace(/[^0-9.]/g, '')) || 0
+  const hasSalePrice = product.sale_price !== null && product.sale_price !== undefined && product.sale_price !== ''
+  const salePrice = hasSalePrice ? (Number(String(product.sale_price).replace(/[^0-9.]/g, '')) || 0) : 0
+  
+  const isDateValid = product.sale_end_date ? new Date(product.sale_end_date) > new Date() : false
+  const isOnSale = hasSalePrice && salePrice > 0 && salePrice < realPrice && isDateValid
+
+  const finalPrice = isOnSale ? salePrice : realPrice
+  const discountPercent = isOnSale ? Math.round(((realPrice - finalPrice) / realPrice) * 100) : 0
+
   return (
     <article className="group flex flex-col relative bg-white p-3 sm:p-4 rounded-md border border-[#ebe2d5] transition-all hover:border-[#a67c52] h-full">
       <Link href={`/shop/${product.id}`} className="block">
@@ -68,11 +87,20 @@ function ProductCard({ product, onAdd, onBuyNow, onShowToast }: {
             sizes="(max-width: 640px) 50vw, (max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
             className="object-cover transition-transform duration-1000 ease-out group-hover:scale-105"
           />
-          {product.tag && (
-            <span className="absolute left-1.5 top-1.5 bg-white/95 px-1 py-0.5 text-[7px] sm:text-[9px] font-semibold uppercase tracking-[.1em] text-[#3e2723] rounded shadow-sm">
+          
+          {/* Sale Badge */}
+          {isOnSale && (
+            <span className="absolute left-1.5 top-1.5 bg-red-600 text-white px-1.5 py-0.5 text-[7px] sm:text-[9px] font-bold uppercase tracking-[.1em] rounded shadow-sm z-10">
+              {discountPercent}% OFF
+            </span>
+          )}
+
+          {product.tag && !isOnSale && (
+            <span className="absolute left-1.5 top-1.5 bg-white/95 px-1 py-0.5 text-[7px] sm:text-[9px] font-semibold uppercase tracking-[.1em] text-[#3e2723] rounded shadow-sm z-10">
               {product.tag}
             </span>
           )}
+
           <div className="absolute right-1.5 top-1.5 z-10 scale-90 sm:scale-100 origin-top-right">
             <CardWishlistButton productId={product.id} />
           </div>
@@ -88,9 +116,18 @@ function ProductCard({ product, onAdd, onBuyNow, onShowToast }: {
           <h3 className="font-serif text-[13px] sm:text-[15px] leading-tight text-[#3e2723] group-hover:text-[#a67c52] transition-colors line-clamp-2">
             {product.name}
           </h3>
-          <p className="text-[11px] sm:text-[13px] font-bold text-[#3e2723]">
-            {String(product.price).includes('PKR') ? product.price : `PKR ${Number(product.price).toLocaleString('en-PK')}`}
-          </p>
+          
+          {/* ✅ Price Display */}
+          <div className="flex items-center gap-2 flex-wrap mt-0.5">
+            <p className="text-[12px] sm:text-[15px] font-bold text-[#3e2723]">
+              PKR {finalPrice.toLocaleString('en-PK')}
+            </p>
+            {isOnSale && (
+              <p className="text-[9px] sm:text-[11px] text-gray-400 line-through font-medium">
+                PKR {realPrice.toLocaleString('en-PK')}
+              </p>
+            )}
+          </div>
         </div>
 
         <p className="text-[9px] sm:text-[11px] text-[#7a6b5d] line-clamp-1 mb-1">
@@ -137,7 +174,6 @@ export function ZunllyHome({
   const [shopHovered, setShopHovered] = useState(false)
 
   const [visibleBestSellers, setVisibleBestSellers] = useState(4)
-
   const [toast, setToast] = useState<{ message: string; type: ToastType; visible: boolean }>({ message: '', type: 'cart', visible: false })
 
   const supabase = createClient()
@@ -171,7 +207,14 @@ export function ZunllyHome({
   const filtered = useMemo(() => products?.filter((p) => `${p.name} ${p.category} ${p.notes}`.toLowerCase().includes(query.toLowerCase())) || [], [products, query])
 
   const addToCart = async (product: StoreProduct) => {
-    await addCartItem({ id: product.id, name: product.name, price: Number(String(product.price).replace(/[^0-9.]/g, '')) || 0, image: product.image })
+    const realPrice = Number(String(product.price).replace(/[^0-9.]/g, '')) || 0
+    const hasSalePrice = product.sale_price !== null && product.sale_price !== undefined && product.sale_price !== ''
+    const salePrice = hasSalePrice ? (Number(String(product.sale_price).replace(/[^0-9.]/g, '')) || 0) : 0
+    const isDateValid = product.sale_end_date ? new Date(product.sale_end_date) > new Date() : false
+    const isOnSale = hasSalePrice && salePrice > 0 && salePrice < realPrice && isDateValid
+    const finalPrice = isOnSale ? salePrice : realPrice
+
+    await addCartItem({ id: product.id, name: product.name, price: finalPrice, image: product.image })
   }
 
   const buyNow = (product: StoreProduct) => {
@@ -185,7 +228,7 @@ export function ZunllyHome({
   const bestSellingProducts = products?.slice(0, 12) || []
 
   const features = [
-    { icon: Truck, title: 'Free Delivery', desc: 'On orders over PKR 10,000' },
+    { icon: Truck, title: 'Free Delivery', desc: 'On orders over PKR 5,000' },
     { icon: ShieldCheck, title: '100% Authentic', desc: 'Premium quality guaranteed' },
     { icon: Sparkles, title: 'Long Lasting', desc: 'Composed to linger beautifully' },
     { icon: RotateCcw, title: 'Easy Returns', desc: '7-day hassle-free returns' }
@@ -326,7 +369,7 @@ export function ZunllyHome({
       {/* ANNOUNCEMENT BAR */}
       <div className="bg-[#3e2723] py-2.5 sm:py-2 text-center">
         <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-[.15em] text-[#f4ebe1]">
-          Free Delivery Over Rs 5,000 · Cash on Delivery · 
+          Free Delivery Over Rs 5,000 | 100% Authentic | Easy Returns
         </p>
       </div>
 
